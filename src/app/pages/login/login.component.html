@@ -1,0 +1,64 @@
+<div class="login-container">
+    <!-- Connexion par email/mot de passe -->
+    <div class="form-section" *ngIf="!showCodeLogin">
+        <h2>BIENVENUE</h2>
+        <p>Veuillez saisir vos informations de connexion.</p>
+
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+            <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'email')}">
+                <label>Email</label>
+                <input type="email" formControlName="email" placeholder="Entrez votre email" required />
+                <p *ngIf="isInvalid(loginForm, 'email')" class="error">
+                    Email invalide
+                </p>
+            </div>
+
+            <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'password')}">
+                <label>Mot de passe</label>
+                <input type="password" formControlName="password" placeholder="Mot de passe (min 6 caractères)" required />
+                <p *ngIf="isInvalid(loginForm, 'password')" class="error">
+                    Mot de passe trop court (6 caractères minimum)
+                </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary" [disabled]="loginForm.invalid">Se connecter</button>
+
+            <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+            <p class="forgot-password">
+                <a href="#" (click)="toggleCodeLogin(); $event.preventDefault();">Connexion par code secret</a>
+            </p>
+        </form>
+    </div>
+
+    <!-- Connexion par code secret -->
+    <div class="form-section" *ngIf="showCodeLogin">
+        <h2>BIENVENUE</h2>
+        <p>Veuillez saisir votre code secret.</p>
+
+        <form [formGroup]="codeLoginForm" (ngSubmit)="onSubmit()">
+            <div class="form-group">
+                <label>Code secret</label>
+                <div class="code-inputs">
+                    <input type="text" maxlength="1" formControlName="code1" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code1')}" />
+                    <input type="text" maxlength="1" formControlName="code2" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code2')}" />
+                    <input type="text" maxlength="1" formControlName="code3" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code3')}" />
+                    <input type="text" maxlength="1" formControlName="code4" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code4')}" />
+                </div>
+                <p *ngIf="codeLoginForm.invalid" class="error">
+                    Le code doit contenir 4 chiffres
+                </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary" [disabled]="codeLoginForm.invalid">Se connecter</button>
+
+            <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+            <p class="forgot-password">
+                <a href="#" (click)="toggleCodeLogin()">Retour à la connexion par email</a>
+            </p>
+        </form>
+    </div>
+
+    <div class="image-section">
+        <img src="assets/login.png" width="550px" height="560px" alt="Image de connexion" />
+    </div>
+</div>
