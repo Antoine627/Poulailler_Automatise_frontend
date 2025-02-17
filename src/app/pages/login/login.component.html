@@ -1,3 +1,5 @@
+<div class="login">
+    
 <div class="login-container">
     <!-- Connexion par email/mot de passe -->
     <div class="form-section" *ngIf="!showCodeLogin">
@@ -39,15 +41,33 @@
             <div class="form-group">
                 <label>Code secret</label>
                 <div class="code-inputs">
-                    <input type="text" maxlength="1" formControlName="code1" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code1')}" />
-                    <input type="text" maxlength="1" formControlName="code2" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code2')}" />
-                    <input type="text" maxlength="1" formControlName="code3" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code3')}" />
-                    <input type="text" maxlength="1" formControlName="code4" [ngClass]="{'invalid': isInvalid(codeLoginForm, 'code4')}" />
+                    <input type="text" maxlength="1" formControlName="code1"
+                        (keypress)="allowOnlyNumbers($event)"
+                        (input)="moveToNext($event, 0)"
+                        #codeInput />
+            
+                    <input type="text" maxlength="1" formControlName="code2"
+                        (keypress)="allowOnlyNumbers($event)"
+                        (input)="moveToNext($event, 1)"
+                        #codeInput />
+            
+                    <input type="text" maxlength="1" formControlName="code3"
+                        (keypress)="allowOnlyNumbers($event)"
+                        (input)="moveToNext($event, 2)"
+                        #codeInput />
+            
+                    <input type="text" maxlength="1" formControlName="code4"
+                        (keypress)="allowOnlyNumbers($event)"
+                        (input)="moveToNext($event, 3)"
+                        #codeInput />
                 </div>
                 <p *ngIf="codeLoginForm.invalid" class="error">
                     Le code doit contenir 4 chiffres
                 </p>
             </div>
+            
+            
+            
 
             <button type="submit" class="btn btn-primary" [disabled]="codeLoginForm.invalid">Se connecter</button>
 
@@ -61,4 +81,5 @@
     <div class="image-section">
         <img src="assets/login.png" width="550px" height="560px" alt="Image de connexion" />
     </div>
+</div>
 </div>

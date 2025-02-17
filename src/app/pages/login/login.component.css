@@ -5,6 +5,12 @@
     box-sizing: border-box; /* Inclure le padding et la bordure dans la largeur totale */
 }
 
+.login{
+    justify-content: center;
+   padding-top: 180px;
+    height: 100vh;
+}
+
 body {
     
     display: flex; /* Utiliser Flexbox pour centrer le contenu */
@@ -16,9 +22,6 @@ body {
 }
 
 .login-container {
-
-    
-
 
    margin-left: 25%;
    

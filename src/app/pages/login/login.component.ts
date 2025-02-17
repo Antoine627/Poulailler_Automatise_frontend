@@ -95,8 +95,7 @@ export class LoginComponent {
   }
 }
  */
-
-import { Component } from '@angular/core';
+import { Component, ElementRef, QueryList, ViewChildren } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
@@ -116,58 +115,66 @@ export class LoginComponent {
   errorMessage: string = '';
   showCodeLogin: boolean = false;
 
+  @ViewChildren('codeInput') codeInputs!: QueryList<ElementRef>;
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router
   ) {
-    // Formulaire email/mot de passe avec validation en temps réel
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
 
-    // Formulaire pour code secret (4 chiffres)
     this.codeLoginForm = this.fb.group({
-      code1: ['', [Validators.required, Validators.pattern('^[0-9]$')]], 
-      code2: ['', [Validators.required, Validators.pattern('^[0-9]$')]], 
-      code3: ['', [Validators.required, Validators.pattern('^[0-9]$')]], 
+      code1: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
+      code2: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
+      code3: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
       code4: ['', [Validators.required, Validators.pattern('^[0-9]$')]]
     });
   }
 
-  // Basculer entre les deux modes
   toggleCodeLogin() {
+    this.errorMessage = '';
     this.showCodeLogin = !this.showCodeLogin;
   }
 
-  // Vérifie si un champ est valide
   isInvalid(form: FormGroup, controlName: string) {
     const control = form.get(controlName);
     return control?.invalid && (control.dirty || control.touched);
   }
 
-  // Connexion avec email/mot de passe
+  handleError(error: any) {
+    if (error.status === 400) {
+      this.errorMessage = 'Veuillez remplir correctement les champs requis.';
+    } else if (error.status === 401) {
+      this.errorMessage = 'Identifiants incorrects. Veuillez réessayer.';
+    } else if (error.status === 404) {
+      this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
+    } else {
+      this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
+    }
+  }
+
   loginWithEmail() {
     if (this.loginForm.invalid) return;
+    this.errorMessage = '';
 
     const { email, password } = this.loginForm.value;
-
     this.authService.login(email, password).subscribe({
       next: (res) => {
         localStorage.setItem('token', res.data.token);
         this.router.navigate(['/dashboard']);
         this.loginForm.reset();
       },
-      error: (err) => {
-        this.errorMessage = err.error.message || 'Connexion échouée';
-      }
+      error: (err) => this.handleError(err)
     });
   }
 
-  // Connexion avec code secret
   loginWithCode() {
     if (this.codeLoginForm.invalid) return;
+    this.errorMessage = '';
 
     const { code1, code2, code3, code4 } = this.codeLoginForm.value;
     const code = `${code1}${code2}${code3}${code4}`;
@@ -178,18 +185,36 @@ export class LoginComponent {
         this.router.navigate(['/dashboard']);
         this.codeLoginForm.reset();
       },
-      error: (err) => {
-        this.errorMessage = err.error.message || 'Connexion échouée';
-      }
+      error: (err) => this.handleError(err)
     });
   }
 
-  // Gère la soumission en fonction du mode sélectionné
   onSubmit() {
-    if (this.showCodeLogin) {
-      this.loginWithCode();
+    this.showCodeLogin ? this.loginWithCode() : this.loginWithEmail();
+  }
+
+  // Déplacement automatique vers le champ suivant
+  moveToNext(event: Event, index: number) {
+    const input = event.target as HTMLInputElement;
+    if (input.value.match(/^[0-9]$/)) {
+      setTimeout(() => {
+        const inputs = this.codeInputs.toArray();
+        if (index < inputs.length - 1) {
+          inputs[index + 1].nativeElement.focus();
+        } else {
+          this.onSubmit(); // Soumission automatique du formulaire si dernier champ rempli
+        }
+      }, 100);
     } else {
-      this.loginWithEmail();
+      input.value = '';
+    }
+  }
+  
+
+  // Empêcher la saisie de caractères non numériques
+  allowOnlyNumbers(event: KeyboardEvent) {
+    if (!/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
     }
   }
 }
