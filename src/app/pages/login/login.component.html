@@ -41,36 +41,29 @@
             <div class="form-group">
                 <label>Code secret</label>
                 <div class="code-inputs">
-                    <input type="text" maxlength="1" formControlName="code1"
-                        (keypress)="allowOnlyNumbers($event)"
-                        (input)="moveToNext($event, 0)"
-                        #codeInput />
-            
-                    <input type="text" maxlength="1" formControlName="code2"
-                        (keypress)="allowOnlyNumbers($event)"
-                        (input)="moveToNext($event, 1)"
-                        #codeInput />
-            
-                    <input type="text" maxlength="1" formControlName="code3"
-                        (keypress)="allowOnlyNumbers($event)"
-                        (input)="moveToNext($event, 2)"
-                        #codeInput />
-            
-                    <input type="text" maxlength="1" formControlName="code4"
-                        (keypress)="allowOnlyNumbers($event)"
-                        (input)="moveToNext($event, 3)"
-                        #codeInput />
+                    <input type="text" maxlength="1" formControlName="code1"(keydown)="moveToNext($event, 0)" #codeInput />
+                                
+                    <input type="text" maxlength="1" formControlName="code2"(keydown)="moveToNext($event, 1)" #codeInput />
+                                
+                    <input type="text" maxlength="1" formControlName="code3"(keydown)="moveToNext($event, 2)" #codeInput />
+                                
+                    <input type="text" maxlength="1" formControlName="code4"(keydown)="moveToNext($event, 3)" #codeInput />
                 </div>
                 <p *ngIf="codeLoginForm.invalid" class="error">
                     Le code doit contenir 4 chiffres
                 </p>
+             </div>
+            <div *ngIf="isBlocked" class="countdown-container">
+                <p>Trop de tentatives ! Réessayez dans</p>
+                    <div class="countdown-circle">
+                        <div class="countdown-bar" [style.animationDuration]="countdownDuration + 's'"></div>
+                        <span class="countdown-text">{{ countdown }}</span>
+                    </div>
+                <p>secondes.</p>
             </div>
-            
-            
-            
-
-            <button type="submit" class="btn btn-primary" [disabled]="codeLoginForm.invalid">Se connecter</button>
-
+                                
+          <!--   <button type="submit" class="btn btn-primary" [disabled]="codeLoginForm.invalid">Se connecter</button>
+ -->
             <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
             <p class="forgot-password">
                 <a href="#" (click)="toggleCodeLogin()">Retour à la connexion par email</a>
