@@ -19,6 +19,12 @@ export class LoginComponent {
   errorMessage: string = '';
   showCodeLogin: boolean = false;
 
+    // Variables pour gérer l'affichage temporaire du code
+    codeTempVisible: boolean[] = [false, false, false, false];  // 4 chiffres à afficher temporairement
+
+
+  //rendre visible le  mot de passe 
+  passwordVisible = false;
 
   // LIMITER LE NOMBRE DE TENTATIVE DE CONNEXION A 3
   attempts: number = 0;
@@ -176,7 +182,7 @@ interval: any;
     }
   } */
   
-    moveToNext(event: KeyboardEvent, index: number) {
+    /* moveToNext(event: KeyboardEvent, index: number) {
       const input = event.target as HTMLInputElement;
       const inputs = this.codeInputs.toArray();
       const key = event.key;
@@ -200,7 +206,37 @@ interval: any;
       } else {
         event.preventDefault(); // Bloque toute autre touche
       }
-    }
+    } */
+
+      moveToNext(event: KeyboardEvent, index: number) {
+        const input = event.target as HTMLInputElement;
+        const inputs = this.codeInputs.toArray();
+        const key = event.key;
+      
+        if (key.match(/^[0-9]$/)) {
+          event.preventDefault(); // Empêche le comportement par défaut
+          this.codeLoginForm.patchValue({ [`code${index + 1}`]: key }); // Mise à jour du FormControl
+      
+          // Appel de toggleCodeVisibility pour masquer temporairement le code saisi
+          this.toggleCodeVisibility(index);
+      
+          if (index < inputs.length - 1) {
+            setTimeout(() => inputs[index + 1].nativeElement.focus(), 100);
+          } else {
+            this.onSubmit(); // Envoi automatique si dernier champ rempli
+          }
+        } else if (key === 'Backspace') {
+          event.preventDefault();
+          this.codeLoginForm.patchValue({ [`code${index + 1}`]: '' }); // Efface le champ dans le FormControl
+      
+          if (index > 0) {
+            setTimeout(() => inputs[index - 1].nativeElement.focus(), 100);
+          }
+        } else {
+          event.preventDefault(); // Bloque toute autre touche
+        }
+      }
+      
     
 
   // Empêcher la saisie de caractères non numériques
@@ -261,5 +297,26 @@ interval: any;
       this.errorMessage = '';
     }
     
+
+    togglePasswordVisibility() {
+      this.passwordVisible = !this.passwordVisible;
+  }
   
+
+
+
+  // Affichage temporaire du code (durée de 1 seconde)
+  toggleCodeVisibility(index: number) {
+    this.codeTempVisible[index] = true;
+
+    // Masquer les chiffres après 1 seconde
+    setTimeout(() => {
+      this.codeTempVisible[index] = false;
+    }, 1000); // 1000 ms = 1 seconde
+  }
+
+
+
+
+ 
 }

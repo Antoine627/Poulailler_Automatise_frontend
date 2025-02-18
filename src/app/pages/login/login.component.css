@@ -9,7 +9,7 @@
     justify-content: center;
     padding-top: 110px;
     height: 100vh;
-    background-color: rgba(248, 247, 220, 0.8); /* Ajustez le dernier chiffre pour la transparence */
+    background-color: #FFF0B7;
 }
 
 body {
@@ -19,16 +19,29 @@ body {
     align-items: center; /* Centrer verticalement */
     height: 100vh; /* Hauteur de la fenêtre */
     margin: 0; /* Enlever les marges par défaut */
-    background-color: #F6EB61; /* Couleur de fond de la page */
+    background-color: #FFF0B7 /* Couleur de fond de la page */
 }
+
+/* Logique générale pour le logo */
+.logo {
+    text-align: center; /* Centrer l'image du logo */
+    margin-bottom: 30px; /* Espacement entre le logo et la section du formulaire */
+    margin-top: -500px; /* Déplacer l'image du logo de 349px vers le haut */
+}
+
+.logo img {
+    width: 150px; /* Largeur de l'image, ajustez comme nécessaire */
+    height: auto; /* La hauteur est ajustée en fonction de la largeur pour garder les proportions */
+}
+
 
 .login-container {
     position: relative;
     width: 80%; /* Occupation de 80% de l'écran */
-    max-width: 1200px; /* Largeur maximale, si nécessaire */
-    max-height: 1200px;
+    max-width: 1350px; /* Largeur maximale, si nécessaire */
+    max-height: 1300px;
     margin: 0 auto; /* Centrer horizontalement */
-    padding: 20px;
+    padding: 0px;
     height: 720px; /* Hauteur fixe ou ajustable */
     background-color: #f9f9f9; /* Couleur de fond */
     border-radius: 8px; /* Coins arrondis */
@@ -70,8 +83,14 @@ body {
 
 h2 {
     color: #333; /* Couleur du titre */
+    text-align: center;
+    padding-top: -200px;
 }
 
+P{
+    text-align: center;
+    font-size: 19px;
+}
 .form-group {
     margin-bottom: 15px; /* Espacement entre les champs */
 }
@@ -260,3 +279,26 @@ button:disabled {
     }
   }
   
+  .password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-container input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.password-container i {
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    color: #ccc;
+}
+
+.password-container i:hover {
+    color: #007bff;
+}

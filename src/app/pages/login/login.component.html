@@ -1,10 +1,15 @@
 <div class="login">
     
+    
 <div class="login-container">
+    <div class="logo">
+        <img src="assets/logo.png" alt="Logo de Connexion" />
+    </div>
     <!-- Connexion par email/mot de passe -->
     <div class="form-section" *ngIf="!showCodeLogin">
+        
         <h2>BIENVENUE</h2>
-        <p>Veuillez saisir vos informations de connexion.</p>
+        <p>Veuillez saisir vos informations de connexion,<br> email et mot de passe </p>
 
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
             <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'email')}">
@@ -15,13 +20,26 @@
                 </p>
             </div>
 
+           
             <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'password')}">
                 <label>Mot de passe</label>
-                <input type="password" formControlName="password" placeholder="Mot de passe (min 6 caractères)" required />
+                <div class="password-container">
+                    <input 
+                        type="password" 
+                        formControlName="password" 
+                        placeholder="Mot de passe (min 6 caractères)" 
+                        required
+                        [type]="passwordVisible ? 'text' : 'password'" />
+                    <i 
+                        class="fas fa-eye" 
+                        [ngClass]="{'fa-eye-slash': !passwordVisible}"
+                        (click)="togglePasswordVisibility()"></i>
+                </div>
                 <p *ngIf="isInvalid(loginForm, 'password')" class="error">
                     Mot de passe trop court (6 caractères minimum)
                 </p>
             </div>
+            
 
             <button type="submit" class="btn btn-primary" [disabled]="loginForm.invalid">Se connecter</button>
 
@@ -39,7 +57,7 @@
 
         <form [formGroup]="codeLoginForm" (ngSubmit)="onSubmit()">
             <div class="form-group">
-                <label>Code secret</label>
+                
                 <div class="code-inputs">
                     <input type="text" maxlength="1" formControlName="code1"(keydown)="moveToNext($event, 0)" #codeInput />
                                 
@@ -62,8 +80,7 @@
                 <p>secondes.</p>
             </div>
                                 
-          <!--   <button type="submit" class="btn btn-primary" [disabled]="codeLoginForm.invalid">Se connecter</button>
- -->
+         
             <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
             <p class="forgot-password">
                 <a href="#" (click)="toggleCodeLogin()">Retour à la connexion par email</a>
@@ -72,7 +89,7 @@
     </div>
 
     <div class="image-section">
-        <img src="assets/login.png" width="550px" height="560px" alt="Image de connexion" />
+        <img src="assets/login.png" width="850px" height="720px" alt="Image de connexion" />
     </div>
 </div>
 </div>
