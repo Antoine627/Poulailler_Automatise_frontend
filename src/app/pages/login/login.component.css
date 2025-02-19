@@ -1,0 +1,304 @@
+* {
+    
+    margin: 0; /* Réinitialiser les marges par défaut */
+    padding: 0; /* Réinitialiser le padding par défaut */
+    box-sizing: border-box; /* Inclure le padding et la bordure dans la largeur totale */
+}
+
+.login {
+    justify-content: center;
+    padding-top: 110px;
+    height: 100vh;
+    background-color: #FFF0B7;
+}
+
+body {
+    
+    display: flex; /* Utiliser Flexbox pour centrer le contenu */
+    justify-content: center; /* Centrer horizontalement */
+    align-items: center; /* Centrer verticalement */
+    height: 100vh; /* Hauteur de la fenêtre */
+    margin: 0; /* Enlever les marges par défaut */
+    background-color: #FFF0B7 /* Couleur de fond de la page */
+}
+
+/* Logique générale pour le logo */
+.logo {
+    text-align: center; /* Centrer l'image du logo */
+    margin-bottom: 30px; /* Espacement entre le logo et la section du formulaire */
+    margin-top: -500px; /* Déplacer l'image du logo de 349px vers le haut */
+}
+
+.logo img {
+    width: 150px; /* Largeur de l'image, ajustez comme nécessaire */
+    height: auto; /* La hauteur est ajustée en fonction de la largeur pour garder les proportions */
+}
+
+
+.login-container {
+    position: relative;
+    width: 80%; /* Occupation de 80% de l'écran */
+    max-width: 1350px; /* Largeur maximale, si nécessaire */
+    max-height: 1300px;
+    margin: 0 auto; /* Centrer horizontalement */
+    padding: 0px;
+    height: 720px; /* Hauteur fixe ou ajustable */
+    background-color: #f9f9f9; /* Couleur de fond */
+    border-radius: 8px; /* Coins arrondis */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Ombre pour un effet de profondeur */
+    display: flex; /* Utiliser flexbox pour aligner les sections */
+    align-items: center; /* Centrer verticalement les sections */
+    justify-content: center; /* Centrer horizontalement les sections */
+}
+.form-section {
+    width: 50%; /* Largeur de la section du formulaire */
+    padding: 20px; /* Espacement interne */
+}
+
+.image-section {
+    width: 50%; /* Largeur de la section de l'image */
+}
+
+.image-section img {
+    width: 100%; /* Image prend toute la largeur de son conteneur */
+    border-radius: 8px; /* Coins arrondis pour l'image */
+}
+
+/* Media Queries pour rendre la page responsive */
+@media (max-width: 768px) {
+    .login-container {
+        flex-direction: column; /* Passer à une colonne sur les petits écrans */
+        align-items: center; /* Centrer les sections horizontalement */
+    }
+
+    .form-section, .image-section {
+        width: 100%; /* Largeur complète pour les sections */
+        padding: 10px; /* Espacement interne réduit */
+    }
+
+    .image-section img {
+        width: 80%; /* Largeur de l'image pour les petits écrans */
+    }
+}
+
+h2 {
+    color: #333; /* Couleur du titre */
+    text-align: center;
+    padding-top: -200px;
+}
+
+P{
+    text-align: center;
+    font-size: 19px;
+}
+.form-group {
+    margin-bottom: 15px; /* Espacement entre les champs */
+}
+
+label {
+    display: block; /* Affichage en bloc */
+    margin-bottom: 5px; /* Espacement sous le label */
+}
+
+input {
+    width: 100%; /* Largeur complète */
+    padding: 10px; /* Espacement interne */
+    border: 1px solid #ccc; /* Bordure */
+    border-radius: 4px; /* Coins arrondis */
+}
+
+button {
+    background-color: #5cb85c; /* Couleur du bouton */
+    color: white; /* Couleur du texte */
+    border: none; /* Pas de bordure */
+    padding: 10px 15px; /* Espacement interne */
+    border-radius: 4px; /* Coins arrondis */
+    cursor: pointer; /* Curseur de la souris */
+}
+
+button:disabled {
+    background-color: #ccc; /* Couleur du bouton désactivé */
+}
+
+.error {
+    color: red; /* Couleur des messages d'erreur */
+}
+
+.forgot-password {
+    margin-top: 10px; /* Espacement au-dessus du lien */
+}
+
+.forgot-password a {
+    color: #007bff; /* Couleur du lien */
+    text-decoration: none; /* Pas de soulignement */
+}
+
+/*keypad*/
+.login-container2 {
+    position: relative;
+    width: 100%;
+    max-width: 600px; /* Ajuste la largeur maximale selon tes besoins */
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f0f0f0; /* Fond gris clair pour la section */
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-section2 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h2 {
+    margin-bottom: 10px; /* Espacement sous le titre */
+}
+
+p {
+    margin-bottom: 15px; /* Espacement sous le paragraphe */
+}
+
+.code-inputs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px; /* Espacement entre les champs de code */
+}
+
+.code-inputs input[type="text"] {
+    width: 50px; /* Largeur fixe pour chaque champ de code */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+    margin: 0 5px; /* Espacement entre les champs */
+    font-size: 18px; /* Taille de police pour une meilleure lisibilité */
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff; /* Couleur du bouton */
+    border: none;
+    color: white;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:disabled {
+    background-color: #ccc; /* Couleur du bouton désactivé */
+}
+
+.error {
+    color: red;
+    text-align: center;
+    margin-top: 10px; /* Espacement au-dessus du message d'erreur */
+}
+
+.forgot-password {
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* validation en temps reel */
+.error {
+    color: red;
+    font-size: 0.9rem;
+  }
+  
+  .invalid input {
+    border: 1px solid red;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .code-inputs input {
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    font-size: 1.5rem;
+    margin-right: 5px;
+  }
+  
+  .btn-primary:disabled {
+    background-color: gray;
+    cursor: not-allowed;
+  }
+  
+
+
+  /* ANIMATION DU COMPTE A REBOURS */
+
+  .countdown-container {
+    text-align: center;
+    font-size: 18px;
+    color: #d9534f;
+    font-weight: bold;
+    margin-top: 20px;
+  }
+  
+  .countdown-circle {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 8px solid #d9534f;
+    margin: 20px auto;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .countdown-bar {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    clip: rect(0, 100px, 100px, 50px);
+    background: conic-gradient(#FFDE59 0% 100%, transparent 0 100%);
+    animation: countdownAnimation linear forwards;
+  }
+  
+  .countdown-text {
+    position: absolute;
+    font-size: 30px;
+    color: #FFDE59;
+    font-weight: bold;
+  }
+  
+  @keyframes countdownAnimation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-container input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.password-container i {
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    color: #ccc;
+}
+
+.password-container i:hover {
+    color: #007bff;
+}
