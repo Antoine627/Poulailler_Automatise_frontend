@@ -1,1 +1,53 @@
-<p>sidebar works!</p>
+<aside class="sidebar">
+  <div class="logo-container">
+    <img src="assets/images/logo.png" alt="Cocorico Poulailler" class="logo">
+  </div>
+
+  <nav class="menu">
+    <ul>
+      <li class="menu-item" (click)="navigateToDashboard()">
+        <div class="menu-content">
+          <fa-icon [icon]="faTachometerAlt"></fa-icon>
+          Tableau de bord
+        </div>
+      </li>
+      <li class="menu-item" (click)="navigateToUserManagement()">
+        <div class="menu-content">
+          <fa-icon [icon]="faUsers"></fa-icon>
+          Gestion utilisateurs
+        </div>
+      </li>
+      <li class="menu-item" (click)="navigateToVaccinationManagement()">
+        <div class="menu-content">
+          <fa-icon [icon]="faSyringe"></fa-icon>
+          Gestion vaccination
+        </div>
+      </li>
+      <li class="menu-item" (click)="navigateToPoultryManagement()">
+        <div class="menu-content">
+          <fa-icon [icon]="faKiwiBird"></fa-icon>
+          Gestion de volailles
+        </div>
+      </li>
+      <!-- <li class="menu-item" (click)="navigateToAlimentation()">
+        <div class="menu-content">
+          <fa-icon [icon]="faKiwiBird"></fa-icon>
+          Alimentations
+        </div>
+      </li> -->
+      <li class="menu-item" (click)="navigateToHistoriques()">
+        <div class="menu-content">
+          <fa-icon [icon]="faHistory"></fa-icon>
+          Historiques
+        </div>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="logout">
+    <button (click)="logout()">
+      <fa-icon [icon]="faSignOutAlt"></fa-icon>
+      Déconnexion
+    </button>
+  </div>
+</aside>

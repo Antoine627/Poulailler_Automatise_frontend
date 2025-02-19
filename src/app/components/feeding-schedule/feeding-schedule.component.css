@@ -1,0 +1,282 @@
+.schedule-panel {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    color: #333;
+    text-align: center;
+  }
+  
+  .schedule-content {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+  
+  .schedule-section {
+    flex: 1;
+    position: relative;
+    padding: 1rem;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    background-color: #fafafa;
+  }
+  
+  h3 {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  .btn-add {
+    display: block;
+    margin: 0 auto 1rem auto;
+    padding: 0.5rem 1rem;
+    background-color: #FFD600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .btn-add:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .time-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .time-slot {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .time-input {
+    flex: 1;
+    max-width: 200px;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+  }
+  
+  .time-control {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  
+  input[type="time"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+  }
+  
+  .icon-clock {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #FFD600;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 10px; /* Espace entre les icônes */
+    align-items: center;
+  }
+  
+  .icon-edit,
+  .icon-delete {
+    cursor: pointer; /* Curseur en forme de main au survol */
+    font-size: 18px; /* Taille des icônes */
+    transition: transform 0.2s ease, color 0.2s ease; /* Animation au survol */
+  }
+  
+  .icon-edit:hover {
+    color: #007bff; /* Couleur bleue au survol pour l'icône "Modifier" */
+    transform: scale(1.1); /* Légère augmentation de la taille */
+  }
+  
+  .icon-delete:hover {
+    color: #dc3545; /* Couleur rouge au survol pour l'icône "Supprimer" */
+    transform: scale(1.1); /* Légère augmentation de la taille */
+  }
+  
+  /* Ajouter des effets supplémentaires pour les écrans tactiles */
+  .icon-edit:active,
+  .icon-delete:active {
+    transform: scale(0.9); /* Réduction de la taille lors du clic */
+  }
+  
+  p {
+    text-align: center;
+    color: #666;
+  }
+  
+  /* Styles pour la modale */
+  /* Styles pour le backdrop de la modale */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Dark background with transparency */
+  z-index: 1040; /* Ensure it appears behind the modal but above other content */
+}
+
+/* Styles pour la modale */
+.modal-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 600px; /* Reduced width */
+  width: 90%; /* Adjust for smaller screens */
+  z-index: 1050; /* Ensure it appears above the backdrop */
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border: none;
+  background-color: #ffffff;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem; /* Reduced padding */
+  border-bottom: 1px solid #e9ecef;
+  background-color: #e9ecef;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.1rem; /* Reduced font size */
+  color: #343a40;
+}
+
+.close {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(223, 51, 51);
+  text-shadow: none;
+  opacity: 1;
+  background: none;
+  border: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.close:hover {
+  color: rgb(135, 23, 23);
+}
+
+.modal-body {
+  position: relative;
+  padding: 1rem; /* Reduced padding */
+  background-color: #ffffff;
+}
+
+.form-group {
+  margin-bottom: 1rem; /* Reduced margin */
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.form-control {
+  display: block;
+  width: 90%;
+  padding: 0.5rem 0.75rem; /* Reduced padding */
+  font-size: 0.9rem; /* Reduced font size */
+  line-height: 1.5;
+  color: #495057;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem; /* Reduced padding */
+  border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.btn {
+  padding: 0.4rem 0.8rem; /* Reduced padding */
+  font-size: 0.9rem; /* Reduced font size */
+  border-radius: 4px;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.btn-secondary {
+  color: #fff;
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #5a6268;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

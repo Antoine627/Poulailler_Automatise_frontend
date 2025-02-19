@@ -1,0 +1,191 @@
+<div class="stock-dashboard-container">
+  <div class="dashboard-header">
+    <h1>Gestion des Stocks d'Alimentation</h1>
+    <div class="dashboard-actions">
+      <button class="btn btn-primary btn-animation" (click)="resetForm()" *ngIf="editMode">
+        <i class="icon-add"></i> Nouveau Stock
+      </button>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Statistiques et Alertes -->
+    <div class="stats-alerts-container">
+      <div class="card stats-card">
+        <div class="card-header">
+          <h2 class="card-title">Aperçu des Stocks</h2>
+        </div>
+        <div class="card-content">
+          <div class="stats-grid">
+            <div class="stat-item" *ngFor="let stat of stockStats; let i = index" [attr.data-index]="i">
+              <div class="stat-value">{{stat.totalQuantity | number:'1.0-2'}} {{stat.unit}}</div>
+              <div class="stat-label">{{stat.type}}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card alerts-card" *ngIf="lowStockAlerts.length > 0">
+        <div class="card-header">
+          <h2 class="card-title">Alertes ({{lowStockAlerts.length}})</h2>
+        </div>
+        <div class="card-content">
+          <div class="alerts-list">
+            <ul class="list">
+              <li class="list-item alert-item" *ngFor="let alert of lowStockAlerts.slice(0, 3); let i = index"
+                  [attr.data-index]="i">
+                <i class="icon-warning warn"></i>
+                <div class="list-item-title">{{alert.type}}</div>
+                <div class="list-item-line">Stock bas: {{alert.quantity}} {{alert.unit}}</div>
+              </li>
+            </ul>
+            <!-- <a class="btn btn-link" *ngIf="lowStockAlerts.length > 3" [routerLink]="['/stocks/alerts']">
+              Voir toutes les alertes
+            </a> -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulaire et Tableau de stocks -->
+    <div class="main-content-container">
+      <!-- Formulaire d'ajout/modification -->
+      <div class="card form-card">
+        <div class="card-header">
+          <h2 class="card-title">{{editMode ? 'Modifier le Stock' : 'Ajouter un Nouveau Stock'}}</h2>
+        </div>
+        <div class="card-content">
+          <form [formGroup]="stockForm" (ngSubmit)="onSubmit()">
+            <div class="form-row">
+              <div class="form-group input-animation">
+                <label for="type">Type de produit</label>
+                <input id="type" formControlName="type" placeholder="Ex: Maïs" class="form-control">
+                <div class="error" *ngIf="stockForm.get('type')?.hasError('required')">
+                  Type requis
+                </div>
+              </div>
+
+              <div class="form-group input-animation">
+                <label for="category">Catégorie</label>
+                <select id="category" formControlName="category" class="form-control">
+                  <option value="nourriture">Nourriture</option>
+                  <option value="supplements">Suppléments</option>
+                  <option value="medicaments">Médicaments</option>
+                  <option value="autres">Autres</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group input-animation">
+                <label for="quantity">Quantité</label>
+                <input id="quantity" type="number" formControlName="quantity" class="form-control">
+                <div class="error" *ngIf="stockForm.get('quantity')?.hasError('min')">
+                  La quantité ne peut pas être négative
+                </div>
+              </div>
+
+              <div class="form-group input-animation">
+                <label for="unit">Unité</label>
+                <select id="unit" formControlName="unit" class="form-control">
+                  <option value="kg">Kilogrammes (kg)</option>
+                  <option value="g">Grammes (g)</option>
+                  <option value="l">Litres (L)</option>
+                  <option value="unité">Unités</option>
+                </select>
+              </div>
+
+              <div class="form-group input-animation">
+                <label for="minQuantity">Seuil d'alerte</label>
+                <input id="minQuantity" type="number" formControlName="minQuantity" class="form-control">
+                <small class="form-hint">Seuil pour alertes de stock bas</small>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary button-animation" [disabled]="stockForm.invalid || isLoading">
+                <i class="icon-{{editMode ? 'save' : 'add'}}"></i>
+                {{editMode ? 'Mettre à jour' : 'Ajouter'}}
+              </button>
+              <button type="button" class="btn btn-cancel button-animation cancel-button" (click)="resetForm()" *ngIf="editMode">
+                Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Tableau des stocks -->
+      <div class="card table-card">
+        <div class="card-header">
+          <h2 class="card-title">Inventaire des Stocks</h2>
+          <div class="table-actions">
+            <div class="form-group search-field input-animation">
+              <label for="search">Rechercher</label>
+              <input id="search" class="form-control" (keyup)="applyFilter($event)" placeholder="Ex: maïs">
+              <i class="icon-search"></i>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <div class="table-container">
+            <table class="table">
+              <!-- Type Column -->
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Quantité</th>
+                  <th>Catégorie</th>
+                  <th>Dernière MAJ</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let stock of dataSource.data">
+                  <td>{{stock.type}}</td>
+                  <td>{{stock.quantity | number:'1.0-2'}} {{stock.unit}}</td>
+                  <td>{{stock.category}}</td>
+                  <td>{{stock.lastUpdated | date:'dd/MM/yyyy'}}</td>
+                  <td>
+                    <span class="status-badge {{getStatusClass(getStockStatus(stock))}}">
+                      {{getStockStatus(stock)}}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="btn btn-icon icon-button-animation" (click)="viewStockDetails(stock)">
+                      <i class="icon-visibility"></i>
+                    </button>
+                    <button class="btn btn-icon icon-button-animation" (click)="editStock(stock)">
+                      <i class="icon-edit"></i>
+                    </button>
+                    <button class="btn btn-icon icon-button-animation" (click)="deleteStock(stock)">
+                      <i class="icon-delete"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="pagination">
+              <button class="btn btn-pagination" (click)="paginator.previousPage()" [disabled]="!paginator.hasPreviousPage()">Précédent</button>
+              <span>Page {{paginator.pageIndex + 1}} de {{paginator.getNumberOfPages()}}</span>
+              <button class="btn btn-pagination" (click)="paginator.nextPage()" [disabled]="!paginator.hasNextPage()">Suivant</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification personnalisée -->
+  <div class="custom-notification-bar {{notificationType}}" *ngIf="showNotificationBar">
+    <div class="notification-content">
+      <i class="icon-{{notificationType}}"></i>
+      <span>{{notificationMessage}}</span>
+    </div>
+    <button class="btn btn-icon close-button" (click)="showNotificationBar = false">
+      <i class="icon-close"></i>
+    </button>
+  </div>
+</div>

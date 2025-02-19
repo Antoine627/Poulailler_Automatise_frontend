@@ -1,0 +1,183 @@
+.control-item {
+    background-color: #FFF59D;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1rem;
+    position: relative;
+  }
+  
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .control-header .title {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+  
+  .clock-icon {
+    cursor: pointer;
+    color: #555;
+  }
+  
+  .control-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .content-center {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .value-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    transition: all 0.5s ease;
+  }
+  
+  .unit {
+    font-size: 1rem;
+    color: #555;
+    transition: all 0.5s ease;
+  }
+  
+  .icon-section {
+    display: flex;
+    align-items: center;
+  }
+  
+  .control-icon {
+    width: 48px;
+    height: 48px;
+    transition: all 0.5s ease;
+  }
+  
+  /* Nouveau style pour le switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    margin: 0 10px;
+  }
+  
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+  }
+  
+  input:checked + .slider {
+    background-color: #4CAF50;
+  }
+  
+  input:disabled + .slider {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+  }
+  
+  input:checked:disabled + .slider {
+    background-color: #a5d6a7;
+  }
+  
+  input:focus + .slider {
+    box-shadow: 0 0 1px #4CAF50;
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+  
+  .slider.round {
+    border-radius: 34px;
+  }
+  
+  .slider.round:before {
+    border-radius: 50%;
+  }
+  
+  .status-section {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    font-size: 1rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .status {
+    font-size: 1rem;
+    color: #555;
+  }
+  
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ccc;
+  }
+  
+  .status-indicator.on {
+    background-color: #4CAF50;
+  }
+  
+  @keyframes glow {
+    0% {
+      filter: drop-shadow(0 0 2px rgba(255, 244, 104, 0.8))
+             drop-shadow(0 0 4px rgba(255, 244, 104, 0.6));
+    }
+    50% {
+      filter: drop-shadow(0 0 8px rgba(255, 244, 104, 0.8))
+             drop-shadow(0 0 12px rgba(255, 244, 104, 0.6))
+             drop-shadow(0 0 16px rgba(255, 244, 104, 0.4));
+    }
+    100% {
+      filter: drop-shadow(0 0 2px rgba(255, 244, 104, 0.8))
+             drop-shadow(0 0 4px rgba(255, 244, 104, 0.6));
+    }
+  }
+  
+  .light-glow {
+    animation: glow 2s ease-in-out infinite;
+  }

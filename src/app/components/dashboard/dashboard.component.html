@@ -1,1 +1,43 @@
-<p>dashboard works!</p>
+<div class="app-container">
+    <app-sidebar></app-sidebar>
+    <div class="main-content">
+      <div class="dashboard-wrapper">
+        <app-header></app-header>
+        <div class="dashboard-container">
+          <div class="environment-section">
+            <app-environment-card 
+              title="Temperature" 
+              icon="thermometer" 
+              value="6" 
+              unit="C">
+            </app-environment-card>
+            
+            <app-environment-card 
+              title="Humidite" 
+              icon="droplet" 
+              value="67.57" 
+              unit="%">
+            </app-environment-card>
+            
+            <app-environment-card 
+              title="Luminosite" 
+              icon="sun" 
+              value="52" 
+              unit="Lux">
+            </app-environment-card>
+            
+            <app-environment-card 
+              title="Ventilation" 
+              icon="fan" 
+              [hasControls]="true"
+              [isActive]="false">
+            </app-environment-card>
+          </div>
+          
+          <app-control-panel></app-control-panel>
+          
+          <app-feeding-schedule></app-feeding-schedule>
+        </div>
+      </div>
+    </div>
+  </div>

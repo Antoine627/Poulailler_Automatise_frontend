@@ -1,1 +1,34 @@
-<p>control-item works!</p>
+<div class="control-item">
+    <div class="control-header">
+      <h3 class="title">
+        {{title}}
+      </h3>
+      <fa-icon [icon]="faClock" class="clock-icon" (click)="openModal()"></fa-icon>
+    </div>
+    <div class="control-body">
+      <div class="content-center">
+        <div *ngIf="currentValue && unit" class="value-section">
+          <span class="value">{{currentValue}}</span>
+          <span class="unit">{{unit}}</span>
+        </div>
+        <div class="icon-section">
+          <img [src]="getImageUrl()" 
+               [class.light-glow]="type === 'light' && isActive"
+               alt="{{type}} icon" 
+               class="control-icon"/>
+        </div>
+        <label class="switch">
+          <input type="checkbox" 
+                 [checked]="isActive" 
+                 (change)="toggleActive()"
+                 [disabled]="type !== 'light' && currentValue <= 0">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+    <div class="status-section">
+      <div class="status">
+        Status <span class="status-indicator" [class.on]="isActive"></span>
+      </div>
+    </div>
+  </div>

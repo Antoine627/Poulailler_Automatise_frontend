@@ -1,1 +1,17 @@
-<p>environment-card works!</p>
+<div class="card">
+    <div class="card-header">
+      <h3>{{title}} <fa-icon [icon]="getIcon()" [class.rotate]="isActive" [class.colored-icon]="isColoredIcon()"></fa-icon></h3>
+    </div>
+    <div class="card-body" *ngIf="!hasControls">
+      <div class="value">{{value}}{{unit === 'C' ? '°' : ''}} {{unit}}</div>
+    </div>
+    <div class="card-body controls" *ngIf="hasControls">
+      <div class="buttons">
+        <button class="btn-on" [disabled]="isActive" (click)="toggleActive()">Allumer</button>
+        <button class="btn-off" [disabled]="!isActive" (click)="toggleActive()">Eteindre</button>
+      </div>
+      <div class="status">
+        Status <span class="status-indicator" [class.on]="isActive"></span>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,185 @@
+<div class="main-container">
+    <app-sidebar></app-sidebar>
+    <div class="content-container">
+        <app-header></app-header>
+        <div class="dashboard-wrapper">
+            <div class="header">
+                <h1><i class="fas fa-utensils"></i> Alimentation & Eau</h1>
+            </div>
+
+            <!-- Alerte de stock bas -->
+            <div class="alert" *ngIf="stockAlerts.length > 0">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Attention: Niveau d'aliments bas ! Stock restant pour {{ calculateAutonomy(stockAlerts[0].currentStock) }} jours.</span>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Système d'alimentation -->
+                <div class="card card-lg">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-drumstick-bite"></i>
+                            Système d'alimentation
+                        </h2>
+                    </div>
+
+                    <!-- Status du système -->
+                    <div class="status-details">
+                        <div class="status-item">
+                            <div class="status-label">État du système</div>
+                            <div class="status-value" [ngClass]="{'active': isFeedingSystemActive, 'inactive': !isFeedingSystemActive}">
+                                <button class="toggle-btn" (click)="toggleFeedingSystem()">
+                                    {{ isFeedingSystemActive ? 'En marche' : 'Arrêté' }}
+                                    <i class="fas" [ngClass]="{'fa-play-circle': !isFeedingSystemActive, 'fa-stop-circle': isFeedingSystemActive}"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Dernière distribution</div>
+                            <div class="status-value" [ngClass]="{'no-value': !lastFeedingTime}">
+                                <i class="fas fa-history"></i>
+                                {{ lastFeedingTime || '--:--' }}
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Prochaine distribution</div>
+                            <div class="status-value" [ngClass]="{'no-value': !nextFeedingTime}">
+                                <i class="fas fa-clock"></i>
+                                {{ nextFeedingTime || '--:--' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Niveau du réservoir -->
+                    <div class="progress-container">
+                        <h3>Niveau du réservoir d'aliments</h3>
+                        <div class="progress-bar">
+                            <div class="progress" [style.width]="foodTankLevel + '%'"
+                                 [ngClass]="{'low': foodTankLevel < 20, 'medium': foodTankLevel >= 20 && foodTankLevel < 50}">
+                                <div class="progress-text">{{ foodTankLevel }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Programmes d'alimentation -->
+                    <div class="programs-container">
+                        <h3>Programmes d'alimentation</h3>
+                        <div *ngIf="feedingPrograms.length > 0; else noPrograms">
+                            <div class="program-item" *ngFor="let program of feedingPrograms; let i = index">
+                                <div class="schedule-input">
+                                    <div class="input-group">
+                                        <label>Quantité (kg)</label>
+                                        <input type="number"
+                                               [(ngModel)]="program.quantity"
+                                               min="0"
+                                               step="0.5"
+                                               (change)="updateProgram(program)">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Heure de début</label>
+                                        <input type="time"
+                                               [(ngModel)]="program.programStartTime"
+                                               (change)="updateProgram(program)">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Heure de fin</label>
+                                        <input type="time"
+                                               [(ngModel)]="program.programEndTime"
+                                               (change)="updateProgram(program)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <ng-template #noPrograms>
+                            <p class="no-data">Aucun programme d'alimentation enregistré.</p>
+                        </ng-template>
+                    </div>
+                </div>
+
+                <!-- Système d'eau -->
+                <div class="card card-lg">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-tint"></i>
+                            Système d'eau
+                        </h2>
+                    </div>
+
+                    <div class="status-details">
+                        <div class="status-item">
+                            <div class="status-label">État du système</div>
+                            <div class="status-value">{{ isWaterSystemActive ? 'Actif' : 'Inactif' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="progress-container">
+                        <h3>Niveau du réservoir d'eau</h3>
+                        <div class="progress-bar">
+                            <div class="progress" [style.width]="waterTankLevel + '%'">
+                                <div class="progress-text">{{ waterTankLevel }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="waterConsumptionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Statistiques de consommation -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-chart-bar"></i>
+                            Statistiques quotidiennes
+                        </h2>
+                    </div>
+
+                    <div class="stat-grid">
+                        <div class="stat-box">
+                            <h3>Aliments consommés</h3>
+                            <div class="value">{{ dailyFoodConsumption }} kg</div>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Eau consommée</h3>
+                            <div class="value">{{ dailyWaterConsumption }} L</div>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Distributions</h3>
+                            <div class="value">{{ dailyDistributions }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gestion des stocks -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-boxes"></i>
+                            Gestion des stocks
+                        </h2>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Stock</th>
+                                    <th>Autonomie</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let alert of stockAlerts">
+                                    <td>{{ alert._id }}</td>
+                                    <td>{{ alert.currentStock }}</td>
+                                    <td>{{ calculateAutonomy(alert.currentStock) }} jours</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
