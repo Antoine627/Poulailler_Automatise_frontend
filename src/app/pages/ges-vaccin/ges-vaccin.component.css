@@ -9,9 +9,19 @@
     justify-content: space-between;
   }
   
-  .card {
+  /* .card {
     margin-bottom: 20px;
+    border: 1px solid red;
+  } */
+  .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
+  .card-body {
+    flex-grow: 1;
+  }
+  
 
   .half-width {
     flex: 1 1 calc(50% - 10px);
@@ -25,6 +35,8 @@
     text-align: center;
     font-weight: bold;
     padding: 10px 0;
+    
+    
   }
   
   .dates-grid {
@@ -36,15 +48,24 @@
   }
   
   .date-box {
+    width: 75px;
     padding: 10px;
+    height: 65px;
     border: 1px solid #ccc;
     border-radius: 5px;
     cursor: pointer;
+    background-color: #ffffff;
+  transition: background-color 0.3s ease;
+    
   }
   
   .date-box.selected {
     background-color: #28a745;
     color: white;
+  }
+  .overflow-auto {
+    max-height: 200px;
+    overflow-y: auto;
   }
 
   .h1{
@@ -61,6 +82,22 @@
     margin: 25px 25px; /* Ajoute un espace au-dessus et au-dessous */
    
 }
-.btn{
+/* .btn{
     background-color: #2586DF;
+} */
+.btn1{
+  cursor: pointer;
+  color:  #ffffff;
+  background-color: #2586DF;
+  border: 2px solid #2586DF;
+  border-radius: 15%;
+  margin: 5px;
+  height: 35px;
+  width: 45px;
+}
+#statut{
+  background-color: #F8DF00;
+  text-align: center;
+  align-items: center;
+  border-radius: 25px;
 }
