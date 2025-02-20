@@ -73,22 +73,6 @@ interval: any;
   }
 
 
-    /* handleError(error: any) {
-      if (error.status === 400) {
-        this.errorMessage = 'Veuillez remplir correctement les champs requis.';
-      } else if (error.status === 401) {
-        this.errorMessage = 'Identifiants incorrects. Veuillez réessayer.';
-        if (this.showCodeLogin) {
-          this.codeLoginForm.reset();
-          this.focusOnFirstInput(); // Remet le focus sur le premier champ
-        }
-      } else if (error.status === 404) {
-        this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
-      } else {
-        this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
-      }
-    } */
-    
       handleError(error: any) {
         if (error.status === 400) {
           this.errorMessage = 'Veuillez remplir correctement les champs requis.';
@@ -125,22 +109,7 @@ interval: any;
     });
   }
 
-  /* loginWithCode() {
-    if (this.codeLoginForm.invalid) return;
-    this.errorMessage = '';
 
-    const { code1, code2, code3, code4 } = this.codeLoginForm.value;
-    const code = `${code1}${code2}${code3}${code4}`;
-
-    this.authService.loginWithCode(code).subscribe({
-      next: (res) => {
-        localStorage.setItem('token', res.data.token);
-        this.router.navigate(['/dashboard']);
-        this.codeLoginForm.reset();
-      },
-      error: (err) => this.handleError(err)
-    });
-  } */
 
     loginWithCode() {
       if (this.isBlocked || this.codeLoginForm.invalid) return;
@@ -249,14 +218,7 @@ interval: any;
 
 
   // POINTER LE CURSEUR SUR LE PREMIER CHAMPS
- /*  focusOnFirstInput() {
-    setTimeout(() => {
-      const inputs = this.codeInputs.toArray();
-      if (inputs.length > 0) {
-        inputs[0].nativeElement.focus();
-      }
-    }, 100);
-  } */
+
     focusOnFirstInput() {
       setTimeout(() => {
         const inputs = this.codeInputs.toArray();

@@ -1,0 +1,66 @@
+*{
+    height: 100%;
+}
+  
+  .flex-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .card {
+    margin-bottom: 20px;
+  }
+
+  .half-width {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 300px;
+  }
+  
+  .days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    text-align: center;
+    font-weight: bold;
+    padding: 10px 0;
+  }
+  
+  .dates-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    padding: 10px 0;
+    
+  }
+  
+  .date-box {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .date-box.selected {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .h1{
+    border-bottom: 5px red;
+  }
+ 
+#titre{
+    /* margin: 25px; */
+    text-align: start; /* Centre le texte */
+    border: 2px solid rgb(46, 44, 44); /* Bordure rouge de 10 pixels */
+    border-radius: 25px, 25px, 25px, 25px;
+    padding: 10px; /* Ajoute un peu d'espace à l'intérieur pour aérer */
+    border-radius: 5px; /* Arrondit les coins de la bordure */
+    margin: 25px 25px; /* Ajoute un espace au-dessus et au-dessous */
+   
+}
+.btn{
+    background-color: #2586DF;
+}
