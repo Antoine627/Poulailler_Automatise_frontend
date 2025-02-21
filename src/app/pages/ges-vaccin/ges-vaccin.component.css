@@ -101,3 +101,9 @@
   align-items: center;
   border-radius: 25px;
 }
+
+.programme-vaccination {
+  max-height: 900px; /* Ajuste la hauteur selon tes besoins */
+  overflow-y: auto; /* Permet le défilement si nécessaire */
+}
+  

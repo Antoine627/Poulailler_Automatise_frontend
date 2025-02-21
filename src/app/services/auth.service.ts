@@ -34,4 +34,9 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.getToken(); // Vérifie si un token existe
   }
+
+  setToken(token: string): void {
+    localStorage.setItem('token', token);
+  }
+  
 }

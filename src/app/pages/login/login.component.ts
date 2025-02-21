@@ -78,7 +78,7 @@ interval: any;
           this.errorMessage = 'Veuillez remplir correctement les champs requis.';
         } else if (error.status === 401) {
           this.attempts++;
-          this.errorMessage = 'Identifiants incorrects. Veuillez réessayer.';
+          this.errorMessage = 'Identifiants incorrects. Verifier votre mot de passe.';
       
           if (this.attempts >= 3) {
             this.blockUser();

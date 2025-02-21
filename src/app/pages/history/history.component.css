@@ -25,7 +25,9 @@
     margin-left: 25px;
     
 }
-
+h3{
+    margin-left: 30px;
+}
 h2 {
     margin: 0 15px 0 0; /* Espace à droite du titre */
     margin-left: 75px; /* Réinitialise la marge gauche pour centrer */
@@ -131,6 +133,7 @@ h4 {
 .alimentation {
     width: 100%; /* Prend toute la largeur disponible */
     padding: 20px; /* Ajoute un peu d'espace autour */
+   /*  overflow-y: auto; */ /* Permet le défilement si nécessaire */
 }
 
 .table-responsive {
@@ -158,4 +161,7 @@ h4 {
 
 .table-striped tr:hover {
     background-color: #f1f1f1; /* Couleur de fond au survol */
+}
+nav{
+    margin-left: 900px;
 }
