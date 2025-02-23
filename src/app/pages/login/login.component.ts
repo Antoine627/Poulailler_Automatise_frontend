@@ -1,116 +1,132 @@
-
-import { Component, ElementRef, QueryList, ViewChildren } from '@angular/core';
+import { Component, ElementRef, QueryList, ViewChildren, ViewChild, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { filter } from 'rxjs/operators';
+import { SidebarComponent } from '../../components/sidebar/sidebar.component'; // Assurez-vous que le chemin est correct
+import { HeaderComponent } from '../../components/header/header.component'; // Assurez-vous que le chemin est correct
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule, SidebarComponent, HeaderComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit {
   loginForm: FormGroup;
-  codeLoginForm: FormGroup;
+  codeForm: FormGroup;
+  showPassword = false;
+  isCodeMode = false;
+  codeControls = Array(4).fill(null);
   errorMessage: string = '';
-  showCodeLogin: boolean = false;
-
-    // Variables pour gérer l'affichage temporaire du code
-    codeTempVisible: boolean[] = [false, false, false, false];  // 4 chiffres à afficher temporairement
-
-
-  //rendre visible le  mot de passe 
-  passwordVisible = false;
-
-  // LIMITER LE NOMBRE DE TENTATIVE DE CONNEXION A 3
   attempts: number = 0;
-isBlocked: boolean = false;
-countdown: number = 30;
-interval: any;
- // Autres propriétés existantes...
- countdownDuration: number = 30;  // Durée du compte à rebours en secondes
-  
+  isBlocked: boolean = false;
+  countdown: number = 30;
+  countdownDuration: number = 30;
+  interval: any;
+  showCodeInputs: boolean = true;
+  remainingAttempts: number = 3;
 
+  // Ajoutez ces propriétés
+  stockAlerts: any[] = [];
 
   @ViewChildren('codeInput') codeInputs!: QueryList<ElementRef>;
+  @ViewChild('firstInput') firstInput!: ElementRef;
+
+  isAuthPage: boolean = false;
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: NavigationEnd) => {
+        this.isAuthPage = event.url === '/login'; // Adaptez le chemin selon votre configuration
+      });
+
+    if (isPlatformBrowser(this.platformId)) {
+      const savedMode = localStorage.getItem('loginMode');
+      this.isCodeMode = savedMode === 'code';
+    }
+
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
 
-    this.codeLoginForm = this.fb.group({
-      code1: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
-      code2: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
-      code3: ['', [Validators.required, Validators.pattern('^[0-9]$')]],
-      code4: ['', [Validators.required, Validators.pattern('^[0-9]$')]]
-    });
+    const codeControls: any = {};
+    for (let i = 0; i < 4; i++) {
+      codeControls[`digit${i}`] = ['', [Validators.required, Validators.pattern('^[0-9]$')]];
+    }
+    this.codeForm = this.fb.group(codeControls);
   }
 
-  
-    toggleCodeLogin() {
-      this.errorMessage = '';
-      this.showCodeLogin = !this.showCodeLogin;
-      
-      if (this.showCodeLogin) {
-        this.focusOnFirstInput();
+  ngAfterViewInit() {
+    this.focusOnFirstInput();
+  }
+
+  toggleMode(isCode: boolean) {
+    this.isCodeMode = isCode;
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('loginMode', isCode ? 'code' : 'email');
+    }
+    if (isCode) {
+      this.codeForm.reset();
+      this.focusOnFirstInput();
+    } else {
+      this.loginForm.reset();
+    }
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
+  }
+
+  onCodeInput(event: Event, index: number) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+
+    if (!/^\d*$/.test(value)) {
+      input.value = '';
+      return;
+    }
+
+    if (value && index < 3) {
+      const nextInput = this.codeInputs.toArray()[index + 1].nativeElement;
+      nextInput.focus();
+    }
+
+    if (value && index === 3) {
+      this.onSubmitCode();
+    }
+  }
+
+  onKeyDown(event: KeyboardEvent, index: number) {
+    const control = this.codeForm.get(`digit${index}`);
+    if (event.key === 'Backspace' && index > 0 && control) {
+      const controlValue = control.value;
+      if (!controlValue) {
+        const prevInput = this.codeInputs.toArray()[index - 1].nativeElement;
+        prevInput.focus();
       }
     }
-    
-
-  isInvalid(form: FormGroup, controlName: string) {
-    const control = form.get(controlName);
-    return control?.invalid && (control.dirty || control.touched);
   }
 
+  onSubmit() {
+    if (this.isCodeMode) {
+      this.onSubmitCode();
+    } else {
+      this.onSubmitEmail();
+    }
+  }
 
-    /* handleError(error: any) {
-      if (error.status === 400) {
-        this.errorMessage = 'Veuillez remplir correctement les champs requis.';
-      } else if (error.status === 401) {
-        this.errorMessage = 'Identifiants incorrects. Veuillez réessayer.';
-        if (this.showCodeLogin) {
-          this.codeLoginForm.reset();
-          this.focusOnFirstInput(); // Remet le focus sur le premier champ
-        }
-      } else if (error.status === 404) {
-        this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
-      } else {
-        this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
-      }
-    } */
-    
-      handleError(error: any) {
-        if (error.status === 400) {
-          this.errorMessage = 'Veuillez remplir correctement les champs requis.';
-        } else if (error.status === 401) {
-          this.attempts++;
-          this.errorMessage = 'Identifiants incorrects. Veuillez réessayer.';
-      
-          if (this.attempts >= 3) {
-            this.blockUser();
-          } else if (this.showCodeLogin) {
-            this.codeLoginForm.reset();
-            this.focusOnFirstInput();
-          }
-        } else if (error.status === 404) {
-          this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
-        } else {
-          this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
-        }
-      }
-      
-
-  loginWithEmail() {
+  onSubmitEmail() {
     if (this.loginForm.invalid) return;
     this.errorMessage = '';
 
@@ -118,205 +134,96 @@ interval: any;
     this.authService.login(email, password).subscribe({
       next: (res) => {
         localStorage.setItem('token', res.data.token);
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/../components/dashboard']);
         this.loginForm.reset();
       },
       error: (err) => this.handleError(err)
     });
   }
 
-  /* loginWithCode() {
-    if (this.codeLoginForm.invalid) return;
+  onSubmitCode() {
+    if (this.isBlocked || this.codeForm.invalid) return;
     this.errorMessage = '';
 
-    const { code1, code2, code3, code4 } = this.codeLoginForm.value;
-    const code = `${code1}${code2}${code3}${code4}`;
+    const { digit0, digit1, digit2, digit3 } = this.codeForm.value;
+    const code = `${digit0}${digit1}${digit2}${digit3}`;
 
     this.authService.loginWithCode(code).subscribe({
       next: (res) => {
         localStorage.setItem('token', res.data.token);
         this.router.navigate(['/dashboard']);
-        this.codeLoginForm.reset();
+        this.codeForm.reset();
+        this.resetAttempts();
       },
       error: (err) => this.handleError(err)
     });
-  } */
-
-    loginWithCode() {
-      if (this.isBlocked || this.codeLoginForm.invalid) return;
-      this.errorMessage = '';
-    
-      const { code1, code2, code3, code4 } = this.codeLoginForm.value;
-      const code = `${code1}${code2}${code3}${code4}`;
-    
-      this.authService.loginWithCode(code).subscribe({
-        next: (res) => {
-          localStorage.setItem('token', res.data.token);
-          this.router.navigate(['/dashboard']);
-          this.codeLoginForm.reset();
-          this.resetAttempts(); // Réinitialiser les tentatives après une connexion réussie
-        },
-        error: (err) => this.handleError(err)
-      });
-    }
-    
-
-  onSubmit() {
-    this.showCodeLogin ? this.loginWithCode() : this.loginWithEmail();
   }
 
-  // Déplacement automatique vers le champ suivant
-  /* moveToNext(event: Event, index: number) {
-    const input = event.target as HTMLInputElement;
-    if (input.value.match(/^[0-9]$/)) {
-      setTimeout(() => {
-        const inputs = this.codeInputs.toArray();
-        if (index < inputs.length - 1) {
-          inputs[index + 1].nativeElement.focus();
-        } else {
-          this.onSubmit(); // Soumission automatique du formulaire si dernier champ rempli
-        }
-      }, 100);
+  onForgotPassword() {
+    this.router.navigate(['/forget-password']);
+  }
+
+  handleError(error: any) {
+    if (error.status === 400) {
+      this.errorMessage = 'Veuillez remplir correctement les champs requis.';
+    } else if (error.status === 401) {
+      this.attempts++;
+      this.remainingAttempts = 3 - this.attempts;
+      this.errorMessage = `Identifiants incorrects. Tentatives restantes : ${this.remainingAttempts}`;
+      if (this.attempts >= 3) {
+        this.blockUser();
+      } else if (this.isCodeMode) {
+        this.codeForm.reset();
+        this.focusOnFirstInput();
+      }
+    } else if (error.status === 404) {
+      this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
     } else {
-      input.value = '';
-    }
-  } */
-  
-    /* moveToNext(event: KeyboardEvent, index: number) {
-      const input = event.target as HTMLInputElement;
-      const inputs = this.codeInputs.toArray();
-      const key = event.key;
-    
-      if (key.match(/^[0-9]$/)) {
-        event.preventDefault(); // Empêche le comportement par défaut
-        this.codeLoginForm.patchValue({ [`code${index + 1}`]: key }); // Mise à jour du FormControl
-    
-        if (index < inputs.length - 1) {
-          setTimeout(() => inputs[index + 1].nativeElement.focus(), 100);
-        } else {
-          this.onSubmit(); // Envoi automatique si dernier champ rempli
-        }
-      } else if (key === 'Backspace') {
-        event.preventDefault();
-        this.codeLoginForm.patchValue({ [`code${index + 1}`]: '' }); // Efface le champ dans le FormControl
-    
-        if (index > 0) {
-          setTimeout(() => inputs[index - 1].nativeElement.focus(), 100);
-        }
-      } else {
-        event.preventDefault(); // Bloque toute autre touche
-      }
-    } */
-
-      moveToNext(event: KeyboardEvent, index: number) {
-        const input = event.target as HTMLInputElement;
-        const inputs = this.codeInputs.toArray();
-        const key = event.key;
-      
-        if (key.match(/^[0-9]$/)) {
-          event.preventDefault(); // Empêche le comportement par défaut
-          this.codeLoginForm.patchValue({ [`code${index + 1}`]: key }); // Mise à jour du FormControl
-      
-          // Appel de toggleCodeVisibility pour masquer temporairement le code saisi
-          this.toggleCodeVisibility(index);
-      
-          if (index < inputs.length - 1) {
-            setTimeout(() => inputs[index + 1].nativeElement.focus(), 100);
-          } else {
-            this.onSubmit(); // Envoi automatique si dernier champ rempli
-          }
-        } else if (key === 'Backspace') {
-          event.preventDefault();
-          this.codeLoginForm.patchValue({ [`code${index + 1}`]: '' }); // Efface le champ dans le FormControl
-      
-          if (index > 0) {
-            setTimeout(() => inputs[index - 1].nativeElement.focus(), 100);
-          }
-        } else {
-          event.preventDefault(); // Bloque toute autre touche
-        }
-      }
-      
-    
-
-  // Empêcher la saisie de caractères non numériques
-  allowOnlyNumbers(event: KeyboardEvent) {
-    if (!/^[0-9]$/.test(event.key)) {
-      event.preventDefault();
+      this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
     }
   }
 
+  blockUser() {
+    this.isBlocked = true;
+    this.showCodeInputs = false;
+    this.countdownDuration = this.countdown;
+    this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
 
+    this.interval = setInterval(() => {
+      this.countdown--;
+      this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
+      if (this.countdown <= 0) {
+        clearInterval(this.interval);
+        this.resetAttempts();
+      }
+    }, 1000);
+  }
 
-  // POINTER LE CURSEUR SUR LE PREMIER CHAMPS
- /*  focusOnFirstInput() {
+  resetAttempts() {
+    this.attempts = 0;
+    this.remainingAttempts = 3;
+    this.isBlocked = false;
+    this.showCodeInputs = true;
+    this.countdown = 30;
+    this.errorMessage = '';
+  }
+
+  focusOnFirstInput() {
     setTimeout(() => {
-      const inputs = this.codeInputs.toArray();
-      if (inputs.length > 0) {
-        inputs[0].nativeElement.focus();
+      if (this.firstInput) {
+        this.firstInput.nativeElement.focus();
       }
     }, 100);
-  } */
-    focusOnFirstInput() {
-      setTimeout(() => {
-        const inputs = this.codeInputs.toArray();
-        if (inputs.length > 0) {
-          // Réinitialiser le formulaire
-          this.codeLoginForm.reset();
-          
-          // Remettre le focus sur le premier champ
-          inputs[0].nativeElement.focus();
-        }
-      }, 100);
-    }
-    
-
-    //FONCTION POUR BLOQUER L UTILISATEUR 
-    blockUser() {
-      this.isBlocked = true;
-      this.countdownDuration = this.countdown; // Temps en secondes
-      this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
-    
-      this.interval = setInterval(() => {
-        this.countdown--;
-        this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
-    
-        // Si le compte à rebours atteint zéro, réinitialisation
-        if (this.countdown <= 0) {
-          clearInterval(this.interval);
-          this.resetAttempts();
-        }
-      }, 1000);
-    }
-    
-    //FONCTION POUR DEBLOQUER L UTILISATEUR 
-    resetAttempts() {
-      this.attempts = 0;
-      this.isBlocked = false;
-      this.countdown = 30;
-      this.errorMessage = '';
-    }
-    
-
-    togglePasswordVisibility() {
-      this.passwordVisible = !this.passwordVisible;
-  }
-  
-
-
-
-  // Affichage temporaire du code (durée de 1 seconde)
-  toggleCodeVisibility(index: number) {
-    this.codeTempVisible[index] = true;
-
-    // Masquer les chiffres après 1 seconde
-    setTimeout(() => {
-      this.codeTempVisible[index] = false;
-    }, 1000); // 1000 ms = 1 seconde
   }
 
+  isInvalid(form: FormGroup, controlName: string) {
+    const control = form.get(controlName);
+    return control?.invalid && (control.dirty || control.touched);
+  }
 
-
-
- 
+  // Ajoutez cette méthode si nécessaire
+  calculateAutonomy(stock: number): number {
+    // Implémentez la logique pour calculer l'autonomie
+    return stock / 10; // Exemple simplifié
+  }
 }

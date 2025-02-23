@@ -3,27 +3,30 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { FeedingManagementComponent } from './components/feeding-management/feeding-management.component';
 import { StockManagementComponent } from './components/stock-management/stock-management.component';
 import { StockDetailDialogComponent } from './components/stock-detail-dialog/stock-detail-dialog.component';
-// import { LoginComponent } from './components/login/login.component';
-import { LoginComponent } from './pages/login/login.component';
+import { RegisterComponent } from './components/register/register.component';
+import { ForgetPasswordComponent } from './components/forget-password/forget-password.component';
+import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
+import { VaccinationComponent } from './components/vaccination/vaccination.component';
+import { ProductionComponent } from './components/production/production.component';
+import { HistoriquesComponent } from './components/historiques/historiques.component';
+import { SettingsComponent } from './components/settings/settings.component';
 
+import { LoginComponent } from './pages/login/login.component';
+import { AuthGuard } from './auth.guard'; // Importez le guard
 
 export const routes: Routes = [
-  { path: '', component: DashboardComponent },
-  { path: 'alimentation', component: FeedingManagementComponent },
-  { path: 'stocks', component: StockManagementComponent},
-  { path: 'stocks/details', component: StockDetailDialogComponent },
-  // { path: 'login', component: LoginComponent },
+  { path: '', redirectTo: '/login', pathMatch: 'full' }, // Redirection par défaut vers le login
+  { path: 'register', component: RegisterComponent },
+  { path: 'forget-password', component: ForgetPasswordComponent },
+  { path: 'reset-password/:token', component: ResetPasswordComponent },
   { path: 'login', component: LoginComponent }, // Route pour le login
-  { path: '**', redirectTo: '' } // Cette route doit être en dernier
+  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] }, // Protégée par le guard
+  { path: 'alimentation', component: FeedingManagementComponent, canActivate: [AuthGuard] }, // Protégée par le guard
+  { path: 'stocks', component: StockManagementComponent, canActivate: [AuthGuard] }, // Protégée par le guard
+  { path: 'stocks/details', component: StockDetailDialogComponent, canActivate: [AuthGuard] }, // Protégée par le guard
+  { path: 'vaccinations', component: VaccinationComponent, canActivate: [AuthGuard]},
+  { path: 'productions', component: ProductionComponent, canActivate: [AuthGuard]},
+  { path: 'historiques', component: HistoriquesComponent, canActivate: [AuthGuard]},
+  { path: 'parametres', component: SettingsComponent, canActivate: [AuthGuard]},
+  { path: '**', redirectTo: '/login' } // Redirection en cas de route non trouvée
 ];
-// import { Routes } from '@angular/router';
-// import { LoginComponent } from './pages/login/login.component';
-// import { VaccinComponent } from './pages/vaccin/vaccin.component';
-
-// export const routes: Routes = [
-//     { path: '', redirectTo: '/login', pathMatch: 'full' }, // Redirection par défaut vers le login
-//     { path: 'login', component: LoginComponent }, // Route pour le login
-//     { path: 'dashboard', component: DashboardComponent },// Route pour le tableau de bord
-//     { path: 'vaccin', component: VaccinComponent}
-// ];
-

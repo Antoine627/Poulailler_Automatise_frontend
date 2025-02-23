@@ -1,8 +1,8 @@
-// header.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { AuthService } from '../../services/auth.service'; // Importez le service AuthService
 
 @Component({
   selector: 'app-header',
@@ -14,6 +14,8 @@ import { filter } from 'rxjs/operators';
 export class HeaderComponent implements OnInit {
   currentDate = new Date();
   pageTitle = 'Tableau de bord';
+  userName = '';
+  userProfilePicture = '';
 
   // Mapping des routes vers les titres
   private routeTitles: { [key: string]: string } = {
@@ -25,7 +27,7 @@ export class HeaderComponent implements OnInit {
     '/historiques': 'Historiques'
   };
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private authService: AuthService) {
     // S'abonner aux événements de navigation
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
@@ -38,5 +40,28 @@ export class HeaderComponent implements OnInit {
   ngOnInit() {
     // Initialiser le titre au chargement du composant
     this.pageTitle = this.routeTitles[this.router.url] || 'Tableau de bord';
+
+    // Récupérer les informations de l'utilisateur
+    this.loadUserInfo();
+  }
+
+  loadUserInfo() {
+    this.authService.getCurrentUser().subscribe(userInfo => {
+      if (userInfo) {
+        this.userName = userInfo.username;
+        
+        // Vérifier si profilePicture est défini et n'est pas vide
+        if (userInfo.profilePicture) {
+          // Construire l'URL complète vers l'image
+          this.userProfilePicture = `http://localhost:3000/uploads/profiles/${userInfo.profilePicture}`;
+        } else {
+          // Image par défaut si aucune photo n'est disponible
+          this.userProfilePicture = 'assets/images/default-profile.png';
+        }
+        
+        console.log('User info loaded:', userInfo);
+        console.log('Profile picture URL:', this.userProfilePicture);
+      }
+    });
   }
 }

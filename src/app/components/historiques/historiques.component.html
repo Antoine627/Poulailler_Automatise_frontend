@@ -1,0 +1,103 @@
+<div class="app-container">
+  <!-- Contenu principal -->
+  <div class="main-content">
+    <div class="historique-container">
+      <h2>Historique du Poulailler</h2>
+
+      <!-- Filtres -->
+      <div class="carte-filtre">
+        <div class="carte-contenu">
+          <form class="filtre-form">
+            <div class="form-group">
+              <label for="periode">Période:</label>
+              <select
+                id="periode"
+                (change)="onPeriodeChange($event)"
+                [(ngModel)]="periodeSelectionnee"
+                name="periode"
+              >
+                <option *ngFor="let periode of periodes" [value]="periode.value">
+                  {{ periode.label }}
+                </option>
+              </select>
+            </div>
+
+            <div *ngIf="afficherDatesPersonnalisees" class="form-group dates-container">
+              <div class="date-input">
+                <label for="dateDebut">Date de début:</label>
+                <input
+                  id="dateDebut"
+                  type="date"
+                  [(ngModel)]="dateDebut"
+                  name="dateDebut"
+                />
+              </div>
+
+              <div class="date-input">
+                <label for="dateFin">Date de fin:</label>
+                <input
+                  id="dateFin"
+                  type="date"
+                  [(ngModel)]="dateFin"
+                  name="dateFin"
+                />
+              </div>
+            </div>
+
+            <div class="buttons-container">
+              <button class="btn btn-primary" (click)="appliquerFiltres()">
+                Appliquer
+              </button>
+              <button class="btn btn-secondary" (click)="exporterDonnees('csv')">
+                Exporter CSV
+              </button>
+              <button class="btn btn-secondary" (click)="exporterDonnees('excel')">
+                Exporter Excel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Historique des actions -->
+      <div class="carte">
+        <div class="carte-entete">
+          <h3>Historique des Actions</h3>
+        </div>
+        <div class="carte-contenu">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Action</th>
+                <th>Description</th>
+                <th>Données</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let entry of filteredHistory">
+                <td>{{ entry.createdAt | date: 'dd/MM/yyyy' }}</td>
+                <td>{{ entry.type }}</td>
+                <td>{{ entry.action }}</td>
+                <td>{{ entry.description }}</td>
+                <td>{{ formatData(entry.data) }}</td> <!-- Appel de la méthode formatData -->
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Pagination -->
+          <div class="pagination">
+            <button
+              *ngFor="let page of getPaginationPages()"
+              (click)="onPageChange(page)"
+              [class.active]="page === currentPage"
+            >
+              {{ page }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

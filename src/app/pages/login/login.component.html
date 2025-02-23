@@ -1,95 +1,101 @@
-<div class="login">
-    
-    
-<div class="login-container">
-    <div class="logo">
-        <img src="assets/logo.png" alt="Logo de Connexion" />
-    </div>
-    <!-- Connexion par email/mot de passe -->
-    <div class="form-section" *ngIf="!showCodeLogin">
-        
-        <h2>BIENVENUE</h2>
-        <p>Veuillez saisir vos informations de connexion,<br> email et mot de passe </p>
-
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-            <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'email')}">
-                <label>Email</label>
-                <input type="email" formControlName="email" placeholder="Entrez votre email" required />
-                <p *ngIf="isInvalid(loginForm, 'email')" class="error">
-                    Email invalide
-                </p>
+<div class="page-wrapper auth-page">
+    <div class="login-container">
+        <div class="login-form">
+            <div class="logo">
+                <img src="assets/logo.png" alt="Logo de Connexion" />
             </div>
 
-           
-            <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'password')}">
-                <label>Mot de passe</label>
-                <div class="password-container">
-                    <input 
-                        type="password" 
-                        formControlName="password" 
-                        placeholder="Mot de passe (min 6 caractères)" 
-                        required
-                        [type]="passwordVisible ? 'text' : 'password'" />
-                    <i 
-                        class="fas fa-eye" 
-                        [ngClass]="{'fa-eye-slash': !passwordVisible}"
-                        (click)="togglePasswordVisibility()"></i>
+            <div class="login-tabs">
+                <div class="tab" [class.active]="!isCodeMode" (click)="toggleMode(false)">
+                    Email et mot de passe
                 </div>
-                <p *ngIf="isInvalid(loginForm, 'password')" class="error">
-                    Mot de passe trop court (6 caractères minimum)
-                </p>
+                <div class="tab" [class.active]="isCodeMode" (click)="toggleMode(true)">
+                    Code
+                </div>
             </div>
-            
 
-            <button type="submit" class="btn btn-primary" [disabled]="loginForm.invalid">Se connecter</button>
+            <h1>BIENVENUE</h1>
 
-            <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-            <p class="forgot-password">
-                <a href="#" (click)="toggleCodeLogin(); $event.preventDefault();">Connexion par code secret</a>
+            <p class="subtitle">
+                {{ isCodeMode ? 'Veuillez saisir votre code de connexion' : 'Veuillez saisir vos informations de connexion, email et mot de passe' }}
             </p>
-        </form>
-    </div>
 
-    <!-- Connexion par code secret -->
-    <div class="form-section" *ngIf="showCodeLogin">
-        <h2>BIENVENUE</h2>
-        <p>Veuillez saisir votre code secret.</p>
-
-        <form [formGroup]="codeLoginForm" (ngSubmit)="onSubmit()">
-            <div class="form-group">
-                
-                <div class="code-inputs">
-                    <input type="text" maxlength="1" formControlName="code1"(keydown)="moveToNext($event, 0)" #codeInput />
-                                
-                    <input type="text" maxlength="1" formControlName="code2"(keydown)="moveToNext($event, 1)" #codeInput />
-                                
-                    <input type="text" maxlength="1" formControlName="code3"(keydown)="moveToNext($event, 2)" #codeInput />
-                                
-                    <input type="text" maxlength="1" formControlName="code4"(keydown)="moveToNext($event, 3)" #codeInput />
+            <!-- Form pour Email/Mot de passe -->
+            <form *ngIf="!isCodeMode" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+                <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'email')}">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        formControlName="email"
+                        placeholder="Entrez votre email"
+                        class="form-control"
+                    />
+                    <p *ngIf="isInvalid(loginForm, 'email')" class="error">
+                        Email invalide
+                    </p>
                 </div>
-                <p *ngIf="codeLoginForm.invalid" class="error">
-                    Le code doit contenir 4 chiffres
+
+                <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'password')}">
+                    <label for="password">Mot de passe</label>
+                    <div class="password-input">
+                        <input
+                            [type]="showPassword ? 'text' : 'password'"
+                            id="password"
+                            formControlName="password"
+                            placeholder="Entrez votre mot de passe"
+                            class="form-control"
+                        />
+                        <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
+                            <i class="fas fa-eye"></i> <!-- icon for show/hide password -->
+                        </button>
+                    </div>
+                    <p *ngIf="isInvalid(loginForm, 'password')" class="error">
+                        Mot de passe invalide
+                    </p>
+                </div>
+
+                <button type="submit" class="btn btn-primary submit-btn" [disabled]="loginForm.invalid">
+                    Se connecter
+                </button>
+
+                <!-- Lien "Mot de passe oublié" -->
+                <p class="forgot-password">
+                    <a (click)="onForgotPassword()">Mot de passe oublié ?</a>
                 </p>
-             </div>
-            <div *ngIf="isBlocked" class="countdown-container">
-                <p>Trop de tentatives ! Réessayez dans</p>
+
+                <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+            </form>
+
+            <!-- Form pour Code -->
+            <form *ngIf="isCodeMode" [formGroup]="codeForm" (ngSubmit)="onSubmit()">
+                <div class="code-inputs" *ngIf="showCodeInputs">
+                    <input
+                        *ngFor="let control of codeControls; let i = index"
+                        type="text"
+                        [formControlName]="'digit' + i"
+                        maxlength="1"
+                        class="code-input"
+                        (input)="onCodeInput($event, i)"
+                        (keydown)="onKeyDown($event, i)"
+                        #codeInput
+                        #firstInput
+                    />
+                </div>
+                <div *ngIf="isBlocked" class="countdown-container">
                     <div class="countdown-circle">
                         <div class="countdown-bar" [style.animationDuration]="countdownDuration + 's'"></div>
                         <span class="countdown-text">{{ countdown }}</span>
                     </div>
-                <p>secondes.</p>
-            </div>
-                                
-         
-            <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-            <p class="forgot-password">
-                <a href="#" (click)="toggleCodeLogin()">Retour à la connexion par email</a>
-            </p>
-        </form>
+                </div>
+                <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+                <p *ngIf="remainingAttempts < 3 && !isBlocked" class="attempts-remaining">
+                    Tentatives restantes : {{ remainingAttempts }}
+                </p>
+            </form>
+        </div>
+        <div class="illustration">
+            <!-- L'image du coq sera ajoutée en CSS comme background-image -->
+        </div>
     </div>
-
-    <div class="image-section">
-        <img src="assets/login.png" width="850px" height="720px" alt="Image de connexion" />
-    </div>
-</div>
 </div>

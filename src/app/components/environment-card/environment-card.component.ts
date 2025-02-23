@@ -1,15 +1,15 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { faThermometerHalf, faTint, faSun, faFan, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
+import { faThermometerHalf, faTint, faSun, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
 @Component({
   selector: 'app-environment-card',
   standalone: true,
   imports: [CommonModule, FontAwesomeModule],
-  templateUrl: './environment-card.component.html', // Lien vers le template HTML
-  styleUrls: ['./environment-card.component.css'] // Lien vers le fichier CSS
+  templateUrl: './environment-card.component.html',
+  styleUrls: ['./environment-card.component.css']
 })
 export class EnvironmentCardComponent {
   @Input() title: string = '';
@@ -17,16 +17,19 @@ export class EnvironmentCardComponent {
   @Input() value: string = '';
   @Input() unit: string = '';
   @Input() hasControls: boolean = false;
-  @Input() isActive: boolean = false; // Default to false to disable "Eteindre" initially
+  @Input() isActive: boolean = false;
 
   // Icônes Font Awesome
   faThermometerHalf = faThermometerHalf;
   faTint = faTint;
   faSun = faSun;
-  faFan = faFan;
-  faQuestionCircle = faQuestionCircle; // Icône par défaut
+  faQuestionCircle = faQuestionCircle;
 
-  getIcon(): IconDefinition {
+  // Chemins des images pour la lampe
+  lightbulbOn = 'assets/images/light.png'; // Chemin vers l'image de la lampe allumée
+  lightbulbOff = 'assets/images/light-off.png'; // Chemin vers l'image de la lampe éteinte
+
+  getIcon(): IconDefinition | string {
     switch (this.icon) {
       case 'thermometer':
         return this.faThermometerHalf;
@@ -34,10 +37,10 @@ export class EnvironmentCardComponent {
         return this.faTint;
       case 'sun':
         return this.faSun;
-      case 'fan':
-        return this.faFan;
+      case 'lightbulb': // Utiliser l'image de la lampe
+        return this.isActive ? this.lightbulbOn : this.lightbulbOff;
       default:
-        return this.faQuestionCircle; // Retourne une icône par défaut si aucune correspondance n'est trouvée
+        return this.faQuestionCircle;
     }
   }
 

@@ -97,6 +97,22 @@
     animation: spin 2s linear infinite;
   }
   
+  .icon-image {
+    width: 24px; /* Ajustez la taille selon vos besoins */
+    height: auto;
+    margin-left: 0.5rem;
+  }
+  
+  .lightbulb-image {
+    text-align: center; /* Centrer l'image */
+    margin-bottom: 10px; /* Espacement entre l'image et les boutons */
+  }
+  
+  .lightbulb-icon {
+    width: 50px; /* Taille de l'image */
+    height: auto; /* Conserver les proportions */
+  }
+  
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

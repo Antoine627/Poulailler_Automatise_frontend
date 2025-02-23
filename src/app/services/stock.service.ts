@@ -1,86 +1,139 @@
-// src/app/services/stock.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
-import { Stock, StockStats } from './../models/stock.model';
+import { Stock, StockStats, LowStockAlert } from './../models/stock.model';
+import { AuthService } from './auth.service'; // Importez AuthService
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class StockService {
   private readonly apiUrl = 'http://localhost:3000/api/stocks';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {} // Injectez AuthService
+
+  // --------------------------
+  // Méthodes pour les en-têtes HTTP
+  // --------------------------
 
   /**
-   * Ajoute un nouveau stock
+   * Retourne les en-têtes HTTP avec le token JWT.
+   * @returns HttpHeaders - Les en-têtes HTTP.
+   */
+  private getHeaders(): HttpHeaders {
+    const token = this.authService.getToken();
+    return new HttpHeaders({
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` })
+    });
+  }
+  
+
+  // --------------------------
+  // Méthodes pour les stocks
+  // --------------------------
+
+  /**
+   * Ajouter un nouveau stock.
+   * @param stockData - Les données du stock à ajouter.
+   * @returns Observable<Stock> - La réponse du serveur.
    */
   addStock(stockData: Omit<Stock, '_id'>): Observable<Stock> {
-    return this.http.post<Stock>(this.apiUrl, stockData).pipe(
-      tap(stock => console.log('Stock added:', stock)),
+    const headers = this.getHeaders();
+    return this.http.post<Stock>(this.apiUrl, stockData, { headers }).pipe(
+      tap((stock) => console.log('Stock added:', stock)),
       catchError(this.handleError)
     );
   }
 
-
-  // Obtenir tous les stocks
+  /**
+   * Obtenir tous les stocks.
+   * @returns Observable<Stock[]> - La liste des stocks.
+   */
   getAllStocks(): Observable<Stock[]> {
-    return this.http.get<Stock[]>(`${this.apiUrl}/all`);
+    const headers = this.getHeaders();
+    return this.http.get<Stock[]>(`${this.apiUrl}/all`, { headers }).pipe(
+      catchError(this.handleError)
+    );
   }
 
   /**
-   * Récupère les statistiques des stocks
+   * Récupérer les statistiques des stocks.
+   * @returns Observable<StockStats[]> - Les statistiques des stocks.
    */
   getStockStats(): Observable<StockStats[]> {
-    return this.http.get<StockStats[]>(`${this.apiUrl}/stats`).pipe(
-      tap(stats => console.log('Stock stats:', stats)),
+    const headers = this.getHeaders();
+    return this.http.get<StockStats[]>(`${this.apiUrl}/stats`, { headers }).pipe(
+      tap((stats) => console.log('Stock stats:', stats)),
       catchError(this.handleError)
     );
   }
 
   /**
-   * Met à jour un stock existant
+   * Mettre à jour un stock existant.
+   * @param id - L'ID du stock à mettre à jour.
+   * @param stockData - Les nouvelles données du stock.
+   * @returns Observable<Stock> - La réponse du serveur.
    */
   updateStock(id: string, stockData: Partial<Stock>): Observable<Stock> {
-    return this.http.put<Stock>(`${this.apiUrl}/${id}`, stockData).pipe(
-      tap(stock => console.log('Stock updated:', stock)),
+    const headers = this.getHeaders();
+    return this.http.put<Stock>(`${this.apiUrl}/${id}`, stockData, { headers }).pipe(
+      tap((stock) => console.log('Stock updated:', stock)),
       catchError(this.handleError)
     );
   }
 
+  
+
   /**
-   * Supprime un stock
+   * Supprimer un stock.
+   * @param id - L'ID du stock à supprimer.
+   * @returns Observable<Stock> - La réponse du serveur.
    */
   deleteStock(id: string): Observable<Stock> {
-    return this.http.delete<Stock>(`${this.apiUrl}/${id}`).pipe(
-      tap(stock => console.log('Stock deleted:', stock)),
+    const headers = this.getHeaders();
+    return this.http.delete<Stock>(`${this.apiUrl}/${id}`, { headers }).pipe(
+      tap((stock) => console.log('Stock deleted:', stock)),
       catchError(this.handleError)
     );
   }
 
   /**
-   * Récupère tous les stocks de l'utilisateur courant
+   * Obtenir les alertes de stock bas.
+   * @returns Observable<Stock[]> - La liste des stocks en alerte.
    */
-  getStocksByUser(): Observable<Stock[]> {
-    return this.http.get<Stock[]>(`${this.apiUrl}/user`).pipe(
-      tap(stocks => console.log('User stocks:', stocks)),
+  getAlertLowStock(): Observable<LowStockAlert[]> {
+    const headers = this.getHeaders();
+    return this.http.get<LowStockAlert[]>(`${this.apiUrl}/alerts/low-stock`, { headers }).pipe(
       catchError(this.handleError)
     );
   }
 
 
-  // Obtenir les alertes de stock bas
-  getAlertLowStock(): Observable<Stock[]> {
-    return this.http.get<Stock[]>(`${this.apiUrl}/alerts/low-stock`);
-  }
+  /**
+ * Récupérer le niveau du réservoir d'aliments.
+ * @returns Observable<{ foodTankLevel: number }> - Le niveau du réservoir en pourcentage.
+ */
+getFoodTankLevel(): Observable<{ foodTankLevel: number }> {
+  const headers = this.getHeaders();
+  return this.http.get<{ foodTankLevel: number }>(`${this.apiUrl}/food-tank-level`, { headers }).pipe(
+    catchError(this.handleError)
+  );
+}
+
+  // --------------------------
+  // Gestion des erreurs
+  // --------------------------
 
   /**
-   * Gestion centralisée des erreurs
+   * Gestion centralisée des erreurs.
+   * @param error - L'erreur retournée par le serveur.
+   * @returns Observable<never> - Un observable avec l'erreur.
    */
-  private handleError(error: HttpErrorResponse) {
+  private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'Une erreur est survenue';
-
+  
     if (error.error instanceof ErrorEvent) {
       // Erreur côté client
       errorMessage = `Erreur: ${error.error.message}`;
@@ -88,10 +141,14 @@ export class StockService {
       // Erreur côté serveur
       switch (error.status) {
         case 400:
-          errorMessage = 'Données invalides';
+          // Utiliser le message d'erreur renvoyé par le serveur
+          errorMessage = error.error.message || 'Données invalides';
+          break;
+        case 401:
+          errorMessage = 'Non autorisé';
           break;
         case 404:
-          errorMessage = 'Stock non trouvé';
+          errorMessage = 'Ressource non trouvée';
           break;
         case 500:
           errorMessage = 'Erreur serveur';
@@ -100,7 +157,7 @@ export class StockService {
           errorMessage = `Code d'erreur: ${error.status}, message: ${error.message}`;
       }
     }
-
+  
     console.error('Erreur dans StockService:', errorMessage);
     return throwError(() => new Error(errorMessage));
   }

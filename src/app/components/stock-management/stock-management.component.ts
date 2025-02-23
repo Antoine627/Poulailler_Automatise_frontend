@@ -1,14 +1,18 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
-import { Stock, StockStats } from './../../models/stock.model';
+import { Stock, StockStats, LowStockAlert } from './../../models/stock.model';
 import { StockService } from '../../services/stock.service';
 import { StockDetailDialogComponent } from './../stock-detail-dialog/stock-detail-dialog.component';
 import { ConfirmDialogComponent } from './../confirm-dialog/confirm-dialog.component';
+import { SidebarComponent } from '../sidebar/sidebar.component';
+import { HeaderComponent } from '../header/header.component';
 
 @Component({
   selector: 'app-stock-management',
@@ -17,7 +21,11 @@ import { ConfirmDialogComponent } from './../confirm-dialog/confirm-dialog.compo
   standalone: true,
   imports: [
     CommonModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    SidebarComponent,
+    HeaderComponent,
+    MatPaginatorModule,
+    MatTableModule
   ]
 })
 export class StockManagementComponent implements OnInit {
@@ -25,14 +33,16 @@ export class StockManagementComponent implements OnInit {
   dataSource = new MatTableDataSource<Stock>();
   stockForm: FormGroup;
   stockStats: StockStats[] = [];
+  lowStockAlerts: LowStockAlert[] = []; 
   isLoading = false;
-  lowStockAlerts: Stock[] = [];
+  // lowStockAlerts: Stock[] = [];
   chartData: any[] = [];
   editMode = false;
   currentStockId: string | null = null;
   showNotificationBar = false;
   notificationMessage = '';
   notificationType = '';
+  waterQuantity: number = 100;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -40,7 +50,8 @@ export class StockManagementComponent implements OnInit {
   constructor(
     private stockService: StockService,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) {
     this.stockForm = this.fb.group({
       type: ['', [Validators.required, Validators.minLength(3)]],
@@ -89,23 +100,33 @@ export class StockManagementComponent implements OnInit {
 
   loadAllData() {
     this.isLoading = true;
-
-    // Ajouter classe pour animation de chargement
+  
     const container = document.querySelector('.stock-dashboard-container');
     if (container) {
       container.classList.add('loading-animation');
     }
-
+  
     // Charger les stocks
     this.stockService.getAllStocks().subscribe({
       next: (stocks) => {
         this.dataSource.data = stocks;
         this.prepareChartData(stocks);
+  
+        // Récupérer le stock d'eau
+        const waterStock = stocks.find(stock => stock.type === 'eau');
+        if (waterStock) {
+          this.waterQuantity = waterStock.quantity; // Assigner la quantité d'eau
+        } else {
+          this.waterQuantity = 0; // Valeur par défaut si aucun stock d'eau n'est trouvé
+          this.showCustomNotification('Aucun stock d\'eau trouvé', 'info');
+        }
+  
         this.isLoading = false;
         if (container) {
           container.classList.remove('loading-animation');
           this.animateTableRows();
         }
+        this.cdr.markForCheck();
       },
       error: (error) => {
         this.showCustomNotification('Erreur lors du chargement des stocks', 'error');
@@ -115,26 +136,30 @@ export class StockManagementComponent implements OnInit {
         }
       }
     });
-
+  
+    // Charger les alertes de stock bas
+    this.stockService.getAlertLowStock().subscribe({
+      next: (alerts: LowStockAlert[]) => { // Typer la réponse comme LowStockAlert[]
+        this.lowStockAlerts = alerts.filter(alert => alert.currentStock < alert.minQuantity);
+        setTimeout(() => this.animateAlerts(), 100);
+        this.cdr.markForCheck();
+      },
+      error: (error) => this.showCustomNotification('Erreur lors du chargement des alertes', 'error')
+    });
+  
     // Charger les statistiques
     this.stockService.getStockStats().subscribe({
       next: (stats) => {
         this.stockStats = stats;
         setTimeout(() => this.animateStats(), 100);
+        this.cdr.markForCheck();
       },
       error: (error) => this.showCustomNotification('Erreur lors du chargement des statistiques', 'error')
     });
-
-    // Charger les alertes de stock bas
-    this.stockService.getAlertLowStock().subscribe({
-      next: (alerts) => {
-        this.lowStockAlerts = alerts;
-        setTimeout(() => this.animateAlerts(), 100);
-      },
-      error: (error) => this.showCustomNotification('Erreur lors du chargement des alertes', 'error')
-    });
   }
 
+
+  
   animateTableRows() {
     const rows = document.querySelectorAll('.table tbody tr');
     rows.forEach((row, index) => {
@@ -164,16 +189,18 @@ export class StockManagementComponent implements OnInit {
 
   prepareChartData(stocks: Stock[]) {
     const categories = [...new Set(stocks.map(stock => stock.category))];
-
-    this.chartData = categories.map(category => {
-      const categoryStocks = stocks.filter(stock => stock.category === category);
-      const totalQuantity = categoryStocks.reduce((sum, stock) => sum + stock.quantity, 0);
-
-      return {
-        name: category,
-        value: totalQuantity
-      };
-    });
+  
+    this.chartData = categories
+      .filter(category => category !== 'eau') // Exclure l'eau
+      .map(category => {
+        const categoryStocks = stocks.filter(stock => stock.category === category);
+        const totalQuantity = categoryStocks.reduce((sum, stock) => sum + stock.quantity, 0);
+  
+        return {
+          name: category,
+          value: totalQuantity
+        };
+      });
   }
 
   applyFilter(event: Event) {
@@ -196,42 +223,32 @@ export class StockManagementComponent implements OnInit {
 
   onSubmit() {
     if (this.stockForm.invalid) {
-      // Animation de secousse pour le formulaire invalide
-      const formCard = document.querySelector('.form-card');
-      if (formCard) {
-        formCard.classList.add('shake-animation');
-        setTimeout(() => {
-          formCard.classList.remove('shake-animation');
-        }, 500);
-      }
+      console.error('Formulaire invalide', this.stockForm.value);
       return;
     }
-
-    const stockData = this.stockForm.value;
+  
+    const stockData = {
+      type: this.stockForm.value.type.trim(),
+      quantity: Number(this.stockForm.value.quantity),
+      unit: this.stockForm.value.unit.trim(),
+      category: this.stockForm.value.category.trim(),
+      minQuantity: Number(this.stockForm.value.minQuantity)
+    };
+  
+    console.log('Données envoyées:', stockData); // Afficher les données dans la console
+  
     this.isLoading = true;
-
-    // Animation du bouton de soumission
-    const submitButton = document.querySelector('button[type="submit"]');
-    if (submitButton) {
-      submitButton.classList.add('button-press-animation');
-    }
-
+  
     if (this.editMode && this.currentStockId) {
       this.stockService.updateStock(this.currentStockId, stockData).subscribe({
         next: (stock) => {
           this.showCustomNotification('Stock mis à jour avec succès', 'success');
           this.resetForm();
           this.loadAllData();
-          if (submitButton) {
-            submitButton.classList.remove('button-press-animation');
-          }
         },
         error: (error) => {
           this.showCustomNotification(`Erreur lors de la mise à jour: ${error.message}`, 'error');
           this.isLoading = false;
-          if (submitButton) {
-            submitButton.classList.remove('button-press-animation');
-          }
         }
       });
     } else {
@@ -240,20 +257,16 @@ export class StockManagementComponent implements OnInit {
           this.showCustomNotification('Stock ajouté avec succès', 'success');
           this.resetForm();
           this.loadAllData();
-          if (submitButton) {
-            submitButton.classList.remove('button-press-animation');
-          }
         },
         error: (error) => {
           this.showCustomNotification(`Erreur lors de l'ajout: ${error.message}`, 'error');
           this.isLoading = false;
-          if (submitButton) {
-            submitButton.classList.remove('button-press-animation');
-          }
         }
       });
     }
   }
+  
+  
 
   editStock(stock: Stock) {
     this.editMode = true;
@@ -297,7 +310,6 @@ export class StockManagementComponent implements OnInit {
   }
 
   deleteStock(stock: Stock) {
-    // Animation avant d'ouvrir la boîte de dialogue
     const row = document.querySelector(`tr[data-id="${stock._id}"]`);
     if (row) {
       row.classList.add('shake-animation');
@@ -309,7 +321,7 @@ export class StockManagementComponent implements OnInit {
       this.openDeleteDialog(stock);
     }
   }
-
+  
   openDeleteDialog(stock: Stock) {
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       width: '400px',
@@ -320,14 +332,14 @@ export class StockManagementComponent implements OnInit {
         cancelButtonText: 'Annuler'
       }
     });
-
+  
     dialogRef.afterClosed().subscribe(result => {
       if (result && stock._id) {
         this.isLoading = true;
         this.stockService.deleteStock(stock._id).subscribe({
           next: () => {
             this.showCustomNotification('Stock supprimé avec succès', 'success');
-            // Animation de suppression de la ligne
+  
             const row = document.querySelector(`tr[data-id="${stock._id}"]`);
             if (row) {
               row.classList.add('fade-out-row');
@@ -339,7 +351,25 @@ export class StockManagementComponent implements OnInit {
             }
           },
           error: (error) => {
-            this.showCustomNotification(`Erreur lors de la suppression: ${error.message}`, 'error');
+            // Gestion spécifique pour un stock non vide
+            if (error.status === 409) {
+              this.showCustomNotification('Impossible de supprimer le stock car il n\'est pas vide.', 'error');
+            }
+            // Autres cas d'erreur
+            else if (error.status === 400) {
+              this.showCustomNotification(error.error.message || 'Données invalides', 'error');
+            } else if (error.status === 404) {
+              this.showCustomNotification('Le stock que vous essayez de supprimer n\'existe pas.', 'error');
+            } else if (error.status === 401) {
+              this.showCustomNotification('Vous n\'êtes pas autorisé à effectuer cette action.', 'error');
+            } else {
+              this.showCustomNotification(`Une erreur s'est produite : ${error.message}`, 'error');
+            }
+  
+            this.isLoading = false;
+            console.error('Erreur détaillée:', error);
+          },
+          complete: () => {
             this.isLoading = false;
           }
         });
@@ -389,12 +419,12 @@ export class StockManagementComponent implements OnInit {
   }
 
   showCustomNotification(message: string, type: 'success' | 'error' | 'info') {
-    // Animation de notification personnalisée
+    // Afficher une notification à l'utilisateur
     this.notificationMessage = message;
     this.notificationType = type;
     this.showNotificationBar = true;
-
-    // Fermer automatiquement après 3 secondes
+  
+    // Fermer automatiquement la notification après 3 secondes
     setTimeout(() => {
       this.showNotificationBar = false;
     }, 3000);
@@ -404,4 +434,5 @@ export class StockManagementComponent implements OnInit {
   showNotification(message: string, type: 'success' | 'error' | 'info') {
     this.showCustomNotification(message, type);
   }
+  
 }

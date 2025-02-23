@@ -1,8 +1,11 @@
-<!-- header.component.html -->
 <header class="header">
   <h1>{{ pageTitle }}</h1>
   <div class="user-info">
-    <span>Fatou DIEYE</span>
-    <span class="date">{{currentDate | date:'dd/MM/yyyy'}}</span>
+    <img [src]="userProfilePicture" 
+     alt="Photo de profil" 
+     class="profile-picture"
+     (error)="userProfilePicture = 'assets/images/default-profile.png'">
+    <span>{{ userName }}</span>
+    <span class="date">{{ currentDate | date:'dd/MM/yyyy' }}</span>
   </div>
 </header>

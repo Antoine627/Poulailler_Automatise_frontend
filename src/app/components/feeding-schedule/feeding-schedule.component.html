@@ -2,24 +2,28 @@
   <h2>Tableau des programmations d'alimentation</h2>
   <a (click)="navigateToAlimentation()" class="voir-plus" style="cursor: pointer;">Voir plus</a>
 
+  
+
   <div class="schedule-content">
     <div class="schedule-section">
       <h3>Nourritures</h3>
       <button class="btn-add" (click)="openAddModal('nourritures', addModal)" [disabled]="nourritures.length >= 3">Ajouter</button>
       <div class="time-slots" *ngIf="nourritures.length > 0; else noProgramsNourritures">
         <div class="time-slot" *ngFor="let program of nourritures; let i = index">
-          <div class="time-input">
-            <label>Heure Début</label>
-            <div class="time-control">
-              <input type="time" [(ngModel)]="program.programStartTime" disabled>
-              <i class="icon-clock"></i>
+          <div class="time-container">
+            <div class="time-input">
+              <label>Heure Début</label>
+              <div class="time-control">
+                <input type="time" [(ngModel)]="program.programStartTime" disabled>
+                <i class="icon-clock"></i>
+              </div>
             </div>
-          </div>
-          <div class="time-input">
-            <label>Heure Fin</label>
-            <div class="time-control">
-              <input type="time" [(ngModel)]="program.programEndTime" disabled>
-              <i class="icon-clock"></i>
+            <div class="time-input">
+              <label>Heure Fin</label>
+              <div class="time-control">
+                <input type="time" [(ngModel)]="program.programEndTime" disabled>
+                <i class="icon-clock"></i>
+              </div>
             </div>
           </div>
           <div class="action-buttons">
@@ -65,6 +69,10 @@
   </div>
 </div>
 
+<div *ngIf="showNotificationBar" class="notification-bar" [ngClass]="notificationType">
+  {{ notificationMessage }}
+</div>
+
 <ng-template #addModal let-modal>
   <div class="modal-dialog">
     <div class="modal-content">
@@ -83,40 +91,32 @@
               <div *ngIf="quantity.errors?.['required']">La quantité est requise</div>
             </div>
           </div>
+
           <div class="form-group">
             <label>Type d'alimentation *</label>
-            <input type="text" class="form-control" [(ngModel)]="newFeedType" name="feedType" required #feedType="ngModel">
+            <select class="form-control" [(ngModel)]="newFeedType" name="feedType" required #feedType="ngModel" (change)="onFeedTypeChange($event)">
+              <option value="eau">Eau</option>
+              <option value="Aliment démarrage">Aliment démarrage</option>
+              <!-- Ajoutez d'autres types d'alimentation si nécessaire -->
+            </select>
             <div *ngIf="feedType.invalid && (feedType.dirty || feedType.touched)" class="alert alert-danger">
               <div *ngIf="feedType.errors?.['required']">Le type d'alimentation est requis</div>
             </div>
           </div>
-          <div class="form-group">
-            <label>Stock Quantité *</label>
-            <input type="number" class="form-control" [(ngModel)]="newStockQuantity" name="stockQuantity" required #stockQuantity="ngModel">
-            <div *ngIf="stockQuantity.invalid && (stockQuantity.dirty || stockQuantity.touched)" class="alert alert-danger">
-              <div *ngIf="stockQuantity.errors?.['required']">La quantité de stock est requise</div>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Stock *</label>
-            <select class="form-control" [(ngModel)]="newStockId" name="stockId" required #stockId="ngModel">
-              <option *ngFor="let stock of stocks" [ngValue]="stock._id">{{ stock.type }} ({{ stock.quantity }} {{ stock.unit }})</option>
-            </select>
-            <div *ngIf="stockId.invalid && (stockId.dirty || stockId.touched)" class="alert alert-danger">
-              <div *ngIf="stockId.errors?.['required']">Le stock est requis</div>
-            </div>
-          </div>
-          <div class="form-group">
+
+          <div class="form-group" *ngIf="newFeedType !== 'eau'">
             <label>Notes</label>
             <textarea class="form-control" [(ngModel)]="newNotes" name="notes"></textarea>
           </div>
-          <div class="form-group">
+
+          <div class="form-group" *ngIf="newFeedType !== 'eau'">
             <label>Alimentation Automatique</label>
             <select class="form-control" [(ngModel)]="newAutomaticFeeding" name="automaticFeeding">
               <option [ngValue]="true">Oui</option>
               <option [ngValue]="false">Non</option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Heure Début du Programme *</label>
             <input type="time" class="form-control" [(ngModel)]="newProgramStartTime" name="programStartTime" required #programStartTime="ngModel">
@@ -124,11 +124,23 @@
               <div *ngIf="programStartTime.errors?.['required']">L'heure de début est requise</div>
             </div>
           </div>
+
           <div class="form-group">
             <label>Heure Fin du Programme *</label>
             <input type="time" class="form-control" [(ngModel)]="newProgramEndTime" name="programEndTime" required #programEndTime="ngModel">
             <div *ngIf="programEndTime.invalid && (programEndTime.dirty || programEndTime.touched)" class="alert alert-danger">
               <div *ngIf="programEndTime.errors?.['required']">L'heure de fin est requise</div>
+            </div>
+          </div>
+
+          <div class="form-group" *ngIf="newFeedType !== 'eau'">
+            <label>Stock *</label>
+            <select class="form-control" [(ngModel)]="newStockId" name="stockId" required>
+              <option [ngValue]="null" disabled>Sélectionnez un stock</option>
+              <option *ngFor="let stock of stocks" [ngValue]="stock._id">{{ stock.type }}</option>
+            </select>
+            <div *ngIf="feedingForm.controls['stockId']?.invalid && (feedingForm.controls['stockId']?.dirty || feedingForm.controls['stockId']?.touched)" class="alert alert-danger">
+              <div *ngIf="feedingForm.controls['stockId']?.errors?.['required']">La sélection d'un stock est requise</div>
             </div>
           </div>
         </div>

@@ -25,6 +25,13 @@
     createdAt?: Date;
   }
   
+
+  export interface LowStockAlert {
+    type: string;
+    currentStock: number;
+    unit: string;
+    minQuantity: number;
+  }
   
 
   
