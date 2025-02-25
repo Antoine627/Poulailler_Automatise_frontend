@@ -1,11 +1,9 @@
 <header class="header">
   <h1>{{ pageTitle }}</h1>
   <div class="user-info">
-    <img [src]="userProfilePicture" 
-     alt="Photo de profil" 
-     class="profile-picture"
-     (error)="userProfilePicture = 'assets/images/default-profile.png'">
+    <i class="fas fa-user-circle profile-icon"></i> <!-- Utilisez une icône utilisateur -->
     <span>{{ userName }}</span>
+    <span class="role">{{ userRole }}</span> <!-- Ajoutez le rôle ici -->
     <span class="date">{{ currentDate | date:'dd/MM/yyyy' }}</span>
   </div>
 </header>

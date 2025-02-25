@@ -108,7 +108,7 @@ export class HistoryService {
     if (startDate && endDate) {
       params = params.set('startDate', startDate).set('endDate', endDate);
     }
-    return this.http.get<any[]>(`${this.apiUrl}/day`, { params, headers: this.getHeader() }).pipe(
+    return this.http.get<any[]>(`${this.apiUrl}/by-day`, { params, headers: this.getHeader() }).pipe(
       catchError(this.handleError<any[]>('getHistoryByDay', []))
     );
   }
@@ -124,7 +124,7 @@ export class HistoryService {
     if (startDate && endDate) {
       params = params.set('startDate', startDate).set('endDate', endDate);
     }
-    return this.http.get<any[]>(`${this.apiUrl}/week`, { params, headers: this.getHeader() }).pipe(
+    return this.http.get<any[]>(`${this.apiUrl}/by-week`, { params, headers: this.getHeader() }).pipe(
       catchError(this.handleError<any[]>('getHistoryByWeek', []))
     );
   }
@@ -140,7 +140,7 @@ export class HistoryService {
     if (startDate && endDate) {
       params = params.set('startDate', startDate).set('endDate', endDate);
     }
-    return this.http.get<any[]>(`${this.apiUrl}/month`, { params, headers: this.getHeader() }).pipe(
+    return this.http.get<any[]>(`${this.apiUrl}/by-month`, { params, headers: this.getHeader() }).pipe(
       catchError(this.handleError<any[]>('getHistoryByMonth', []))
     );
   }

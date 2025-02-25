@@ -263,3 +263,42 @@
       grid-template-columns: 1fr;
     }
   }
+
+  .toggle-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #cccccc;
+  }
+
+  .info-message {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 5px;
+    padding: 5px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .info-message i {
+    color: #007bff;
+  }
+
+
+  .schedule-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .schedule-panel h2 {
+    margin: 0;
+  }
+  
+  .voir-plus {
+    margin-left: auto;
+    font-size: 1rem; /* Ajustez la taille de la police si nécessaire */
+  }
+  

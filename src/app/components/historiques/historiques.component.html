@@ -87,14 +87,59 @@
           </table>
 
           <!-- Pagination -->
-          <div class="pagination">
-            <button
-              *ngFor="let page of getPaginationPages()"
+          <!-- Pagination -->
+          <div class="pagination" *ngIf="totalItems > 0">
+            <!-- Bouton Précédent -->
+            <button 
+              class="pagination-nav" 
+              [disabled]="currentPage === 1"
+              (click)="onPageChange(currentPage - 1)">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <!-- Première page -->
+            <button 
+              *ngIf="currentPage > 2"
+              (click)="onPageChange(1)"
+              [class.active]="currentPage === 1">
+              1
+            </button>
+
+            <!-- Ellipsis début -->
+            <span class="ellipsis" *ngIf="currentPage > 3">...</span>
+
+            <!-- Pages autour de la page courante -->
+            <button 
+              *ngFor="let page of getVisiblePages()"
               (click)="onPageChange(page)"
-              [class.active]="page === currentPage"
-            >
+              [class.active]="page === currentPage">
               {{ page }}
             </button>
+
+            <!-- Ellipsis fin -->
+            <span class="ellipsis" *ngIf="currentPage < totalPages - 2">...</span>
+
+            <!-- Dernière page -->
+            <button 
+              *ngIf="currentPage < totalPages - 1"
+              (click)="onPageChange(totalPages)"
+              [class.active]="currentPage === totalPages">
+              {{ totalPages }}
+            </button>
+
+            <!-- Bouton Suivant -->
+            <button 
+              class="pagination-nav" 
+              [disabled]="currentPage === totalPages"
+              (click)="onPageChange(currentPage + 1)">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <!-- Info pagination
+            <div class="pagination-info">
+              Page {{ currentPage }} sur {{ totalPages }}
+              ({{ totalItems }} résultats)
+            </div> -->
           </div>
         </div>
       </div>

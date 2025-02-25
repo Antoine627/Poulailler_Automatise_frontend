@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { faTachometerAlt, faUsers, faSyringe, faKiwiBird, faHistory, faSignOutAlt, faBars, faUtensils } from '@fortawesome/free-solid-svg-icons';
+import { faTachometerAlt, faUsers, faSyringe, faKiwiBird, faHistory, faSignOutAlt, faBars, faBowlFood    } from '@fortawesome/free-solid-svg-icons';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service'; // Importez le service AuthService
 
@@ -23,7 +23,7 @@ export class SidebarComponent {
   faHistory = faHistory;
   faSignOutAlt = faSignOutAlt;
   faBars = faBars;
-  faUtensils = faUtensils;
+  faBowlFood    = faBowlFood   ;
 
   // État du sidebar
   isSidebarOpen = false;

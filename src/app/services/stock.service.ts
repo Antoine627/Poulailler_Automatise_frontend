@@ -84,6 +84,45 @@ export class StockService {
     );
   }
 
+
+  /**
+   * Récupère les stocks par type.
+   * @param type - Le type de stock à récupérer.
+   * @returns Observable<any[]> - La liste des stocks du type spécifié.
+   */
+  getStocksByType(type: string): Observable<any[]> {
+    const headers = this.getHeaders();
+    return this.http.get<any[]>(`${this.apiUrl}/by-type/${type}`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+
+
+
+  /**
+   * Décrémenter un stock automatiquement.
+   * @param type - Le type de stock à décrémenter ('feed' ou 'water').
+   * @param quantityToDecrement - La quantité à décrémenter (default: 1).
+   * @returns Observable<any> - La réponse du serveur.
+   */
+  decrementStock(stockId: string, quantity: number = 1): Observable<any> {
+    const headers = this.getHeaders();
+    const url = `${this.apiUrl}/decrement`; // Assurez-vous que l'URL est correcte
+  
+    console.log(`Envoi de la requête de décrémentation: stockId=${stockId}, quantity=${quantity}`);
+  
+    return this.http.post<any>(url, { stockId, quantityToDecrement: quantity }, { headers })
+      .pipe(
+        tap(response => console.log('Réponse de décrémentation:', response)),
+        catchError(error => {
+          console.error('Erreur de décrémentation:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+
   
 
   /**
@@ -111,6 +150,21 @@ export class StockService {
   }
 
 
+
+/**
+ * Obtenir les quantités totales pour chaque type de stock.
+ * @returns Observable<{ totalsByType: { [key: string]: { totalQuantity: number, unit: string } } }> - Les quantités totales par type.
+ */
+getTotals(): Observable<{ totalsByType: { [key: string]: { totalQuantity: number, unit: string } } }> {
+  const headers = this.getHeaders();
+  return this.http.get<{ totalsByType: { [key: string]: { totalQuantity: number, unit: string } } }>(`${this.apiUrl}/totals`, { headers }).pipe(
+    catchError(this.handleError)
+  );
+}
+
+
+
+
   /**
  * Récupérer le niveau du réservoir d'aliments.
  * @returns Observable<{ foodTankLevel: number }> - Le niveau du réservoir en pourcentage.
@@ -118,6 +172,14 @@ export class StockService {
 getFoodTankLevel(): Observable<{ foodTankLevel: number }> {
   const headers = this.getHeaders();
   return this.http.get<{ foodTankLevel: number }>(`${this.apiUrl}/food-tank-level`, { headers }).pipe(
+    catchError(this.handleError)
+  );
+}
+
+
+getWaterTankLevel(): Observable<{ waterTankLevel: number }> {
+  const headers = this.getHeaders();
+  return this.http.get<{ waterTankLevel: number }>(`${this.apiUrl}/water-tank-level`, { headers }).pipe(
     catchError(this.handleError)
   );
 }

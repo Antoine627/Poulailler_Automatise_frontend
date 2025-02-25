@@ -2,14 +2,13 @@
   <h2>Tableau des programmations d'alimentation</h2>
   <a (click)="navigateToAlimentation()" class="voir-plus" style="cursor: pointer;">Voir plus</a>
 
-  
-
   <div class="schedule-content">
     <div class="schedule-section">
       <h3>Nourritures</h3>
       <button class="btn-add" (click)="openAddModal('nourritures', addModal)" [disabled]="nourritures.length >= 3">Ajouter</button>
       <div class="time-slots" *ngIf="nourritures.length > 0; else noProgramsNourritures">
-        <div class="time-slot" *ngFor="let program of nourritures; let i = index">
+        <div class="time-slot" *ngFor="let program of nourritures; let i = index" 
+            [ngClass]="{'expiring': isProgramExpiringSoon(program)}">
           <div class="time-container">
             <div class="time-input">
               <label>Heure Début</label>
@@ -26,6 +25,10 @@
               </div>
             </div>
           </div>
+          <div class="program-details">
+            <p>Type: {{ program.feedType }}</p>
+            <p>Quantité: {{ program.quantity }} {{ getStockUnit(program.stockId) }}</p>
+          </div>
           <div class="action-buttons">
             <i class="icon-edit" (click)="editProgram('nourritures', i)">✏️</i>
             <i class="icon-delete" (click)="deleteProgram('nourritures', i)">🗑️</i>
@@ -41,20 +44,26 @@
       <h3>Eau</h3>
       <button class="btn-add" (click)="openAddModal('eau', addModal)" [disabled]="eau.length >= 3">Ajouter</button>
       <div class="time-slots" *ngIf="eau.length > 0; else noProgramsEau">
-        <div class="time-slot" *ngFor="let program of eau; let i = index">
-          <div class="time-input">
-            <label>Heure Début</label>
-            <div class="time-control">
-              <input type="time" [(ngModel)]="program.programStartTime" disabled>
-              <i class="icon-clock"></i>
+        <div class="time-slot" *ngFor="let program of eau; let i = index"
+            [ngClass]="{'expiring': isProgramExpiringSoon(program)}">
+          <div class="time-container">
+            <div class="time-input">
+              <label>Heure Début</label>
+              <div class="time-control">
+                <input type="time" [(ngModel)]="program.programStartTime" disabled>
+                <i class="icon-clock"></i>
+              </div>
+            </div>
+            <div class="time-input">
+              <label>Heure Fin</label>
+              <div class="time-control">
+                <input type="time" [(ngModel)]="program.programEndTime" disabled>
+                <i class="icon-clock"></i>
+              </div>
             </div>
           </div>
-          <div class="time-input">
-            <label>Heure Fin</label>
-            <div class="time-control">
-              <input type="time" [(ngModel)]="program.programEndTime" disabled>
-              <i class="icon-clock"></i>
-            </div>
+          <div class="program-details">
+            <p>Quantité: {{ program.quantity }} {{ getStockUnit(program.stockId) }}</p>
           </div>
           <div class="action-buttons">
             <i class="icon-edit" (click)="editProgram('eau', i)">✏️</i>
@@ -68,6 +77,7 @@
     </div>
   </div>
 </div>
+
 
 <div *ngIf="showNotificationBar" class="notification-bar" [ngClass]="notificationType">
   {{ notificationMessage }}
@@ -90,6 +100,9 @@
             <div *ngIf="quantity.invalid && (quantity.dirty || quantity.touched)" class="alert alert-danger">
               <div *ngIf="quantity.errors?.['required']">La quantité est requise</div>
             </div>
+            <div *ngIf="currentStockQuantity !== null">
+              <p>Quantité disponible: {{ currentStockQuantity }} {{ currentStockUnit }}</p>
+            </div>
           </div>
 
           <div class="form-group">
@@ -104,12 +117,12 @@
             </div>
           </div>
 
-          <div class="form-group" *ngIf="newFeedType !== 'eau'">
+          <div class="form-group">
             <label>Notes</label>
             <textarea class="form-control" [(ngModel)]="newNotes" name="notes"></textarea>
           </div>
 
-          <div class="form-group" *ngIf="newFeedType !== 'eau'">
+          <div class="form-group">
             <label>Alimentation Automatique</label>
             <select class="form-control" [(ngModel)]="newAutomaticFeeding" name="automaticFeeding">
               <option [ngValue]="true">Oui</option>
@@ -133,14 +146,17 @@
             </div>
           </div>
 
-          <div class="form-group" *ngIf="newFeedType !== 'eau'">
+          <div class="form-group">
             <label>Stock *</label>
-            <select class="form-control" [(ngModel)]="newStockId" name="stockId" required>
+            <select class="form-control" [(ngModel)]="newStockId" name="stockId" required (change)="onStockChange()">
               <option [ngValue]="null" disabled>Sélectionnez un stock</option>
               <option *ngFor="let stock of stocks" [ngValue]="stock._id">{{ stock.type }}</option>
             </select>
             <div *ngIf="feedingForm.controls['stockId']?.invalid && (feedingForm.controls['stockId']?.dirty || feedingForm.controls['stockId']?.touched)" class="alert alert-danger">
               <div *ngIf="feedingForm.controls['stockId']?.errors?.['required']">La sélection d'un stock est requise</div>
+            </div>
+            <div *ngIf="currentStockQuantity !== null">
+              <p>Quantité disponible: {{ currentStockQuantity }} {{ currentStockUnit }}</p>
             </div>
           </div>
         </div>

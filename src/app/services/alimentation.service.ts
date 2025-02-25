@@ -20,6 +20,14 @@ export interface Feeding {
   programEndTime?: string;
   stockId?: string;
   createdAt?: Date;
+  reminderSent?: boolean; // Ajout du champ reminderSent
+}
+
+export interface ConsumptionStats {
+  _id: string;  // feedType
+  totalConsumed: number;
+  totalInitial: number;
+  remainingQuantity: number;
 }
 
 export interface FeedingStats {
@@ -34,12 +42,23 @@ export interface StockAlert {
   currentStock: number;
 }
 
+export interface Notification {
+  _id: string;
+  userId: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: Date;
+}
+
+
 @Injectable({
   providedIn: 'root',
 })
 export class AlimentationService {
   private readonly apiUrl = 'http://localhost:3000/api/feedings';
   private readonly stockApiUrl = 'http://localhost:3000/api/stocks';
+  private readonly notificationsUrl = 'http://localhost:3000/api/notifications';
 
   constructor(private http: HttpClient) {}
 
@@ -54,8 +73,22 @@ export class AlimentationService {
   // Ajouter une alimentation
   addFeeding(feeding: Feeding): Observable<Feeding> {
     const headers = this.getHeaders();
-    return this.http.post<Feeding>(this.apiUrl, feeding, { headers }).pipe(
+  
+    // Envoyer uniquement les champs attendus par le backend
+    const requestBody = {
+      quantity: feeding.quantity,
+      feedType: feeding.feedType,
+      programStartTime: feeding.programStartTime,
+      programEndTime: feeding.programEndTime,
+      notes: feeding.notes,
+      automaticFeeding: feeding.automaticFeeding,
+      stockId: feeding.stockId,
+      reminderSent: false // Initialiser reminderSent à false pour les nouvelles alimentations
+    };
+  
+    return this.http.post<Feeding>(this.apiUrl, requestBody, { headers }).pipe(
       switchMap(addedFeeding => {
+        // Décrémenter le stock localement après une réponse réussie
         if (feeding.stockId && feeding.quantity) {
           return this.updateStockQuantity(feeding.stockId, feeding.quantity).pipe(
             map(() => addedFeeding)
@@ -135,10 +168,26 @@ export class AlimentationService {
     );
   }
 
+
+  // Ajouter cette méthode au service AlimentationService
+    decrementFeedingQuantity(id: string, amount: number = 1): Observable<Feeding> {
+      const headers = this.getHeaders();
+      return this.http.patch<Feeding>(`${this.apiUrl}/${id}/decrement`, { amount }, { headers }).pipe(
+        catchError(this.handleError)
+      );
+    }
+
+    getConsumptionStats(): Observable<ConsumptionStats[]> {
+      const headers = this.getHeaders();
+      return this.http.get<ConsumptionStats[]>(`${this.apiUrl}/consumption-stats`, { headers }).pipe(
+        catchError(this.handleError)
+      );
+    }
+
   // Obtenir les alertes de stock bas
   getAlertLowStock(): Observable<StockAlert[]> {
     const headers = this.getHeaders();
-    return this.http.get<StockAlert[]>(`${this.apiUrl}/alerts/low-stock`, { headers }).pipe(
+    return this.http.get<StockAlert[]>(`${this.stockApiUrl}/alerts/low-stock`, { headers }).pipe(
       catchError(this.handleError)
     );
   }
@@ -166,9 +215,8 @@ export class AlimentationService {
     );
   }
 
-
   // Mettre à jour la quantité de stock
-  private updateStockQuantity(stockId: string, quantityToRemove: number): Observable<any> {
+  updateStockQuantity(stockId: string, quantityToRemove: number): Observable<any> {
     const headers = this.getHeaders();
     const url = `${this.stockApiUrl}/update-quantity/${stockId}`;
     return this.http.put(url, { quantityToRemove }, { headers }).pipe(
@@ -176,7 +224,37 @@ export class AlimentationService {
     );
   }
 
-  
+  // Vérifier manuellement les rappels d'alimentation
+  checkFeedingReminders(): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.post<any>(`${this.apiUrl}/check-reminders`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Démarrer les tâches cron de rappel d'alimentation (admin uniquement)
+  startFeedingReminderCronJobs(): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.post<any>(`${this.apiUrl}/cron/start`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Obtenir les notifications non lues
+  getUnreadNotifications(): Observable<Notification[]> {
+    const headers = this.getHeaders();
+    return this.http.get<Notification[]>(`${this.notificationsUrl}/unread`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Marquer une notification comme lue
+  markNotificationAsRead(id: string): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.put<any>(`${this.notificationsUrl}/${id}/read`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
 
   // Gestion des erreurs
   private handleError(error: HttpErrorResponse) {

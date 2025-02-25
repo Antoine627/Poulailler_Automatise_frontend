@@ -1,13 +1,15 @@
-import { Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Router } from '@angular/router';
-import { AlimentationService, Feeding } from '../../services/alimentation.service';
+import { AlimentationService, Feeding, Notification } from '../../services/alimentation.service';
 import { StockService } from '../../services/stock.service';
 import { Stock } from '../../models/stock.model';
 import { MatDialog } from '@angular/material/dialog';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
+import { Subscription, interval, forkJoin } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-feeding-schedule',
@@ -16,12 +18,15 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.compone
   templateUrl: './feeding-schedule.component.html',
   styleUrls: ['./feeding-schedule.component.css']
 })
-export class FeedingScheduleComponent implements OnInit {
+export class FeedingScheduleComponent implements OnInit, OnDestroy {
   @ViewChild('addModal') addModal!: TemplateRef<any>;
+  @ViewChild('alertModal') alertModal!: TemplateRef<any>;
 
   nourritures: Feeding[] = [];
   eau: Feeding[] = [];
   stocks: Stock[] = [];
+  notifications: Notification[] = [];
+  
   newStartTime: string = '';
   newEndTime: string = '';
   newQuantity: number = 0;
@@ -30,52 +35,311 @@ export class FeedingScheduleComponent implements OnInit {
   newAutomaticFeeding: boolean = true;
   newProgramStartTime: string = '';
   newProgramEndTime: string = '';
-  newStockId: string = ''; // Ajouté pour l'ID du stock
+  newStockId: string = '';
   currentSection: string = '';
   editIndex: number | null = null;
+  
+  checkSubscription: Subscription | null = null;
+  notificationSubscription: Subscription | null = null;
+  CHECK_INTERVAL: number = 60000; // 1 minute
+  NOTIFICATION_CHECK_INTERVAL: number = 300000; // 5 minutes
 
-  showNotificationBar = false; // Pour afficher ou masquer la barre de notification
-  notificationMessage = '';    // Message à afficher
-  notificationType = '';       // Type de notification (success, error, info)
+  showNotificationBar = false;
+  notificationMessage = '';
+  notificationType = '';
+
+  currentStockQuantity: number | null = null;
+  currentStockUnit: string = '';
+  isStockInsufficient: boolean = false;
+  lowStockAlerts: Stock[] = [];
 
   constructor(
     private modalService: NgbModal,
     private router: Router,
     private alimentationService: AlimentationService,
     private stockService: StockService,
-    private dialog: MatDialog 
+    private dialog: MatDialog
   ) {}
 
   ngOnInit() {
     this.loadFeedings();
     this.loadStocks();
+    this.checkLowStocks();
+    this.loadUnreadNotifications();
+    
+    // Démarrer les vérifications périodiques
+    this.startProgramCheck();
+    this.startNotificationCheck();
   }
 
+  ngOnDestroy() {
+    // Se désabonner de tous les observables
+    if (this.checkSubscription) {
+      this.checkSubscription.unsubscribe();
+    }
+    if (this.notificationSubscription) {
+      this.notificationSubscription.unsubscribe();
+    }
+  }
+
+  // Démarrer la vérification périodique des programmes
+  startProgramCheck() {
+    this.checkExpiredPrograms();
+    this.checkUpcomingPrograms();
+    this.alimentationService.checkFeedingReminders().subscribe();
+
+    this.checkSubscription = interval(this.CHECK_INTERVAL).subscribe(() => {
+      this.checkExpiredPrograms();
+      this.checkUpcomingPrograms();
+      this.alimentationService.checkFeedingReminders().subscribe();
+    });
+  }
+
+  // Démarrer la vérification périodique des notifications
+  startNotificationCheck() {
+    this.notificationSubscription = interval(this.NOTIFICATION_CHECK_INTERVAL).subscribe(() => {
+      this.loadUnreadNotifications();
+      this.checkLowStocks();
+    });
+  }
+
+  // Charger les notifications non lues
+  loadUnreadNotifications() {
+    this.alimentationService.getUnreadNotifications().subscribe({
+      next: (notifications) => {
+        this.notifications = notifications;
+        
+        // Afficher les notifications non lues
+        if (notifications.length > 0) {
+          // Afficher la première notification non lue
+          this.showCustomNotification(notifications[0].message, notifications[0].type as 'success' | 'error' | 'info');
+          
+          // Marquer la notification comme lue
+          this.alimentationService.markNotificationAsRead(notifications[0]._id).subscribe();
+        }
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des notifications:', error);
+      }
+    });
+  }
+
+  // Vérifier les stocks bas
+  checkLowStocks() {
+    this.alimentationService.getAlertLowStock().subscribe({
+      next: (alerts) => {
+        if (alerts.length > 0) {
+          // Créer une liste des stocks bas
+          this.stockService.getAllStocks().subscribe({
+            next: (stocks) => {
+              this.lowStockAlerts = stocks.filter(stock => 
+                alerts.some(alert => alert._id === stock._id && stock.quantity <= stock.minQuantity)
+              );
+              
+              if (this.lowStockAlerts.length > 0) {
+                // Ouvrir un modal d'alerte si des stocks sont bas
+                this.openAlertModal(this.alertModal);
+              }
+            }
+          });
+        }
+      },
+      error: (error) => {
+        console.error('Erreur lors de la vérification des stocks bas:', error);
+      }
+    });
+  }
+
+  // Ouvrir un modal d'alerte pour les stocks bas
+  openAlertModal(content: TemplateRef<any>) {
+    this.modalService.open(content, { ariaLabelledBy: 'modal-alert-title' });
+  }
+
+  // Vérifier et supprimer les programmes expirés
+  checkExpiredPrograms() {
+    const currentTime = new Date();
+    const currentTimeString = this.formatTimeString(currentTime);
+    
+    // Vérifier les programmes de nourriture et d'eau
+    this.checkAndRemoveExpiredPrograms(this.nourritures, 'nourritures', currentTimeString);
+    this.checkAndRemoveExpiredPrograms(this.eau, 'eau', currentTimeString);
+  }
+
+  // Fonction pour vérifier et supprimer les programmes expirés d'une section spécifique
+  checkAndRemoveExpiredPrograms(programs: Feeding[], sectionName: string, currentTimeString: string) {
+    const expiredPrograms = programs.filter(program => 
+      program.programEndTime && program.programEndTime < currentTimeString
+    );
+
+    if (expiredPrograms.length > 0) {
+      // Supprimer chaque programme expiré
+      expiredPrograms.forEach(program => {
+        if (program._id) {
+          this.alimentationService.deleteFeeding(program._id).subscribe({
+            next: () => {
+              // Remettre la quantité dans le stock correspondant
+              if (program.stockId) {
+                this.incrementStock(program.stockId, program.quantity);
+              }
+              
+              // Mettre à jour les listes locales
+              if (sectionName === 'nourritures') {
+                this.nourritures = this.nourritures.filter(p => p._id !== program._id);
+              } else {
+                this.eau = this.eau.filter(p => p._id !== program._id);
+              }
+              
+              this.showCustomNotification(`Programme "${program.feedType}" terminé et supprimé automatiquement`, 'info');
+            },
+            error: (error) => {
+              console.error('Erreur lors de la suppression automatique du programme:', error);
+            }
+          });
+        }
+      });
+    }
+  }
+
+  // Vérifier les programmes qui débuteront bientôt
+  checkUpcomingPrograms() {
+    const currentTime = new Date();
+    const oneHourLater = new Date(currentTime.getTime() + 60 * 60 * 1000);
+    const currentTimeString = this.formatTimeString(currentTime);
+    const oneHourLaterString = this.formatTimeString(oneHourLater);
+    
+    // Vérifier pour la nourriture et l'eau
+    this.checkUpcomingProgramsForSection(this.nourritures, 'nourriture', currentTimeString, oneHourLaterString);
+    this.checkUpcomingProgramsForSection(this.eau, 'eau', currentTimeString, oneHourLaterString);
+  }
+
+  // Vérifier les programmes à venir pour une section spécifique
+  checkUpcomingProgramsForSection(programs: Feeding[], sectionName: string, currentTimeString: string, oneHourLaterString: string) {
+    programs.forEach(program => {
+      if (program.programStartTime && 
+          program.programStartTime > currentTimeString && 
+          program.programStartTime <= oneHourLaterString &&
+          !program.reminderSent) { // Vérifier si le rappel n'a pas déjà été envoyé
+        
+        // Calculer le temps restant approximatif
+        const timeRemaining = this.calculateTimeRemaining(program.programStartTime);
+        
+        // Notifier l'utilisateur
+        this.showCustomNotification(
+          `Un programme de ${program.feedType} débutera dans environ ${timeRemaining}`, 
+          'info'
+        );
+        
+        // Marquer le programme comme rappel envoyé
+        if (program._id) {
+          this.alimentationService.updateFeeding(program._id, { reminderSent: true }).subscribe();
+        }
+      }
+    });
+  }
+
+  // Formater une date en chaîne de temps (HH:MM) pour la comparaison
+  formatTimeString(date: Date): string {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  // Calculer approximativement le temps restant en minutes
+  calculateTimeRemaining(targetTimeStr: string): string {
+    const now = new Date();
+    const [hours, minutes] = targetTimeStr.split(':').map(Number);
+    
+    // Créer une date avec l'heure cible
+    const targetTime = new Date();
+    targetTime.setHours(hours, minutes, 0, 0);
+    
+    // Si l'heure cible est déjà passée aujourd'hui, supposer qu'elle est pour demain
+    if (targetTime < now) {
+      targetTime.setDate(targetTime.getDate() + 1);
+    }
+    
+    // Calculer la différence en minutes
+    const diffMs = targetTime.getTime() - now.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
+    } else {
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
+      return `${hours} heure${hours > 1 ? 's' : ''} et ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+  }
+
+  // Méthode pour obtenir l'unité de stock en fonction de l'ID du stock
+  getStockUnit(stockId: string | undefined): string {
+    if (!stockId) return '';
+    const stock = this.stocks.find(s => s._id === stockId);
+    return stock ? stock.unit : '';
+  }
+
+  // Méthode pour vérifier si un programme expire bientôt
+  isProgramExpiringSoon(program: Feeding): boolean {
+    const currentTime = new Date();
+    const programEndTime = new Date();
+    
+    if (!program.programEndTime) return false;
+    
+    const [hours, minutes] = program.programEndTime.split(':').map(Number);
+    programEndTime.setHours(hours, minutes, 0, 0);
+
+    // Vérifier si le programme expire dans les 30 minutes
+    const diffMs = programEndTime.getTime() - currentTime.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    return diffMinutes >= 0 && diffMinutes <= 30;
+  }
+
+  // Charger tous les programmes d'alimentation
   loadFeedings() {
-    this.alimentationService.getAllFeedings().subscribe(
-      (feedings: Feeding[]) => {
-        // Séparer les programmes entre nourriture et eau
+    this.alimentationService.getAllFeedings().subscribe({
+      next: (feedings: Feeding[]) => {
         this.nourritures = feedings.filter(feeding => feeding.feedType !== 'eau');
         this.eau = feedings.filter(feeding => feeding.feedType === 'eau');
       },
-      error => {
+      error: (error) => {
         console.error('Erreur lors du chargement des programmes:', error);
+        this.showCustomNotification('Erreur lors du chargement des programmes', 'error');
       }
-    );
+    });
   }
 
-
+  // Charger tous les stocks
   loadStocks() {
-    this.stockService.getAllStocks().subscribe(
-      (stocks: Stock[]) => {
-        this.stocks = stocks; // Assurez-vous que cette propriété est définie dans le composant
+    this.stockService.getAllStocks().subscribe({
+      next: (stocks: Stock[]) => {
+        this.stocks = stocks;
       },
-      error => {
+      error: (error) => {
         console.error('Erreur lors du chargement des stocks:', error);
+        this.showCustomNotification('Erreur lors du chargement des stocks', 'error');
       }
-    );
+    });
   }
 
+  // Vérifier si un stock est suffisant
+  isStockSufficient(section: string): boolean {
+    const stock = this.stocks.find(stock => stock.type === section);
+    return stock ? stock.quantity > 0 : false;
+  }
+
+  // Vérifier si la quantité demandée est disponible dans le stock sélectionné
+  checkStockSufficiency() {
+    const stock = this.stocks.find(stock => stock._id === this.newStockId);
+    if (stock) {
+      this.currentStockQuantity = stock.quantity;
+      this.currentStockUnit = stock.unit;
+      this.isStockInsufficient = this.newQuantity > stock.quantity;
+    } else {
+      this.currentStockQuantity = null;
+      this.currentStockUnit = '';
+      this.isStockInsufficient = false;
+    }
+  }
 
   // Méthode pour afficher une notification
   showCustomNotification(message: string, type: 'success' | 'error' | 'info') {
@@ -94,6 +358,7 @@ export class FeedingScheduleComponent implements OnInit {
     this.showCustomNotification(message, type);
   }
 
+  // Ouvrir le modal d'ajout/édition
   openAddModal(section: string, content: TemplateRef<any>, index: number | null = null) {
     this.currentSection = section;
     this.editIndex = index;
@@ -107,7 +372,7 @@ export class FeedingScheduleComponent implements OnInit {
       this.newFeedType = program.feedType;
       this.newNotes = program.notes || '';
       this.newAutomaticFeeding = program.automaticFeeding || true;
-      this.newStockId = program.stockId || ''; // Remplir l'ID du stock si disponible
+      this.newStockId = program.stockId || '';
     } else {
       this.resetForm();
     }
@@ -122,77 +387,125 @@ export class FeedingScheduleComponent implements OnInit {
     );
   }
 
+  // Sauvegarder un programme d'alimentation
   saveProgram() {
-    if (this.newProgramStartTime && this.newProgramEndTime && this.newQuantity && this.newFeedType) {
-      const newProgram: Feeding = {
-        quantity: this.newQuantity,
-        feedType: this.currentSection === 'eau' ? 'eau' : this.newFeedType,
-        notes: this.newNotes,
-        automaticFeeding: this.newAutomaticFeeding,
-        programStartTime: this.newProgramStartTime,
-        programEndTime: this.newProgramEndTime,
-        stockId: this.newStockId,
-      };
+    const selectedStock = this.stocks.find(stock => stock._id === this.newStockId);
   
-      if (this.editIndex !== null) {
-        // Mettre à jour un programme existant
-        const programs = this.currentSection === 'nourritures' ? this.nourritures : this.eau;
+    if (!selectedStock) {
+      this.showCustomNotification(`Aucun stock trouvé pour l'ID ${this.newStockId}`, 'error');
+      return;
+    }
+  
+    // Vérifier que l'ID du stock est défini
+    if (!selectedStock._id) {
+      this.showCustomNotification('ID du stock non défini', 'error');
+      return;
+    }
+  
+    // Vérifier si la quantité demandée est disponible dans le stock
+    if (this.newQuantity > selectedStock.quantity) {
+      this.showCustomNotification(`Quantité insuffisante en stock. Disponible: ${selectedStock.quantity} ${selectedStock.unit}`, 'error');
+      return;
+    }
+  
+    const newProgram: Feeding = {
+      quantity: this.newQuantity,
+      feedType: this.newFeedType,
+      notes: this.newNotes,
+      automaticFeeding: this.newAutomaticFeeding,
+      programStartTime: this.newProgramStartTime,
+      programEndTime: this.newProgramEndTime,
+      stockId: selectedStock._id,
+      reminderSent: false
+    };
+  
+    if (this.editIndex !== null) {
+      // Mettre à jour un programme existant
+      const programs = this.currentSection === 'nourritures' ? this.nourritures : this.eau;
+      if (programs[this.editIndex]._id) {
         this.alimentationService.updateFeeding(programs[this.editIndex]._id!, newProgram).subscribe({
           next: () => {
             this.showCustomNotification('Programme mis à jour avec succès', 'success');
             this.loadFeedings();
             this.modalService.dismissAll();
-  
-            // Décrémenter le stock d'eau si le programme concerne l'eau
-            if (newProgram.feedType === 'eau') {
-              this.decrementWaterStock(newProgram.quantity);
-            }
           },
           error: (error) => {
             this.showCustomNotification('Erreur lors de la mise à jour du programme', 'error');
             console.error('Erreur lors de la mise à jour:', error);
           },
         });
-      } else {
-        // Ajouter un nouveau programme
-        this.alimentationService.addFeeding(newProgram).subscribe({
-          next: () => {
-            this.showCustomNotification('Programme ajouté avec succès', 'success');
-            this.loadFeedings();
-            this.modalService.dismissAll();
-  
-            // Décrémenter le stock d'eau si le programme concerne l'eau
-            if (newProgram.feedType === 'eau') {
-              this.decrementWaterStock(newProgram.quantity);
-            }
-          },
-          error: (error) => {
-            this.showCustomNotification('Erreur lors de l\'ajout du programme', 'error');
-            console.error('Erreur lors de l\'ajout:', error);
-          },
-        });
       }
-  
-      this.resetForm();
+    } else {
+      // Ajouter un nouveau programme
+      this.alimentationService.addFeeding(newProgram).subscribe({
+        next: () => {
+          this.showCustomNotification('Programme ajouté avec succès', 'success');
+          this.loadFeedings();
+          this.loadStocks(); // Recharger les stocks après l'ajout
+          this.modalService.dismissAll();
+        },
+        error: (error) => {
+          this.showCustomNotification('Erreur lors de l\'ajout du programme', 'error');
+          console.error('Erreur lors de l\'ajout:', error);
+        },
+      });
     }
+  
+    this.resetForm();
   }
 
- 
+  // Décrémenter un stock
+  decrementStock(stockId: string, quantityUsed: number) {
+    const stock = this.stocks.find(stock => stock._id === stockId);
+    if (!stock) {
+      this.showCustomNotification('Stock introuvable', 'error');
+      return;
+    }
 
+    if (stock.quantity < quantityUsed) {
+      this.showCustomNotification(`Quantité insuffisante en stock. Disponible: ${stock.quantity} ${stock.unit}`, 'error');
+      return;
+    }
+
+    // Mettre à jour la quantité dans le service plutôt que localement
+    this.alimentationService.updateStockQuantity(stockId, quantityUsed).subscribe({
+      next: () => {
+        this.loadStocks(); // Recharger les stocks après la mise à jour
+      },
+      error: (error) => {
+        this.showCustomNotification('Erreur lors de la mise à jour du stock', 'error');
+        console.error('Erreur lors de la mise à jour du stock:', error);
+      }
+    });
+  }
+
+  // Incrémenter un stock (après suppression d'un programme)
+  incrementStock(stockId: string, quantity: number) {
+    // Dans ce cas, nous utilisons une valeur négative pour "incrémenter" car le service soustrait la quantité
+    this.alimentationService.updateStockQuantity(stockId, -quantity).subscribe({
+      next: () => {
+        this.loadStocks(); // Recharger les stocks après la mise à jour
+      },
+      error: (error) => {
+        this.showCustomNotification('Erreur lors de la mise à jour du stock', 'error');
+        console.error('Erreur lors de la mise à jour du stock:', error);
+      }
+    });
+  }
+
+  // Éditer un programme existant
   editProgram(section: string, index: number) {
     try {
       // Ouvrir le modal d'édition
       this.openAddModal(section, this.addModal, index);
-  
-      // Afficher un message de succès
       this.showCustomNotification('Programme chargé pour modification', 'success');
     } catch (error) {
-      // En cas d'erreur, afficher un message d'erreur
       this.showCustomNotification('Erreur lors du chargement du programme', 'error');
       console.error('Erreur lors de l\'édition du programme :', error);
     }
   }
 
+  // Supprimer un programme
   deleteProgram(section: string, index: number) {
     const programs = section === 'nourritures' ? this.nourritures : this.eau;
     const program = programs[index];
@@ -207,10 +520,13 @@ export class FeedingScheduleComponent implements OnInit {
     });
   
     dialogRef.afterClosed().subscribe((result) => {
-      if (result) {
+      if (result && program._id) {
         // Si l'utilisateur confirme la suppression
-        this.alimentationService.deleteFeeding(program._id!).subscribe({
+        this.alimentationService.deleteFeeding(program._id).subscribe({
           next: () => {
+            if (program.stockId) {
+              this.incrementStock(program.stockId, program.quantity);
+            }
             this.showCustomNotification('Programme supprimé avec succès', 'success');
             this.loadFeedings(); // Recharger les données après la suppression
           },
@@ -223,10 +539,12 @@ export class FeedingScheduleComponent implements OnInit {
     });
   }
 
+  // Naviguer vers la page de gestion des stocks
   navigateToAlimentation() {
     this.router.navigate(['/stocks']);
   }
 
+  // Réinitialiser le formulaire
   private resetForm() {
     this.newProgramStartTime = '';
     this.newProgramEndTime = '';
@@ -234,46 +552,52 @@ export class FeedingScheduleComponent implements OnInit {
     this.newFeedType = '';
     this.newNotes = '';
     this.newAutomaticFeeding = true;
-    this.newStockId = ''; // Réinitialiser l'ID du stock
+    this.newStockId = '';
+    this.currentStockQuantity = null;
+    this.currentStockUnit = '';
     this.editIndex = null;
   }
 
-
+  // Gérer le changement de type d'alimentation
   onFeedTypeChange(event: any) {
-    // Implémentez la logique de gestion du changement de type de nourriture ici
-    this.newFeedType = event.target.value; // Exemple de mise à jour de la propriété newFeedType
+    this.newFeedType = event.target.value;
   }
 
-  decrementWaterStock(quantityUsed: number) {
-    this.stockService.getAllStocks().subscribe({
-      next: (stocks) => {
-        const waterStock = stocks.find(stock => stock.type === 'eau'); // Trouver le stock d'eau
-  
-        if (waterStock) {
-          if (waterStock.quantity >= quantityUsed) {
-            waterStock.quantity -= quantityUsed; // Décrémenter la quantité d'eau
-  
-            // Mettre à jour le stock d'eau dans la base de données
-            this.stockService.updateStock(waterStock._id!, waterStock).subscribe({
-              next: () => {
-                this.showCustomNotification('Stock d\'eau mis à jour avec succès', 'success');
-              },
-              error: (error) => {
-                this.showCustomNotification('Erreur lors de la mise à jour du stock d\'eau', 'error');
-                console.error('Erreur lors de la mise à jour du stock d\'eau :', error);
-              },
-            });
-          } else {
-            this.showCustomNotification('Stock d\'eau insuffisant', 'error');
-          }
-        } else {
-          this.showCustomNotification('Stock d\'eau introuvable', 'error');
-        }
+  // Gérer le changement de stock sélectionné
+  onStockChange() {
+    this.checkStockSufficiency();
+  }
+
+  // Procédure de gestion bulk pour ajouter plusieurs programmes
+  bulkAddFeedings(feedings: Feeding[]) {
+    // Vérifier d'abord si tous les stocks sont suffisants
+    const stockChecks = feedings.map(feeding => {
+      const stock = this.stocks.find(s => s._id === feeding.stockId);
+      return { feeding, stock, isValid: stock && stock.quantity >= feeding.quantity };
+    });
+    
+    const invalidStocks = stockChecks.filter(check => !check.isValid);
+    
+    if (invalidStocks.length > 0) {
+      let errorMessage = 'Quantité insuffisante pour les alimentations suivantes: ';
+      invalidStocks.forEach(invalid => {
+        errorMessage += `${invalid.feeding.feedType} (${invalid.feeding.quantity}), `;
+      });
+      this.showCustomNotification(errorMessage, 'error');
+      return;
+    }
+    
+    // Si tous les stocks sont suffisants, ajouter en bulk
+    this.alimentationService.bulkAddFeedings(feedings).subscribe({
+      next: () => {
+        this.showCustomNotification('Programmes ajoutés avec succès', 'success');
+        this.loadFeedings();
+        this.loadStocks();
       },
       error: (error) => {
-        this.showCustomNotification('Erreur lors du chargement des stocks', 'error');
-        console.error('Erreur lors du chargement des stocks :', error);
-      },
+        this.showCustomNotification('Erreur lors de l\'ajout des programmes', 'error');
+        console.error('Erreur lors de l\'ajout en masse:', error);
+      }
     });
   }
 }

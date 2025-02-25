@@ -1,94 +1,251 @@
-import { Component, ElementRef, QueryList, ViewChildren, ViewChild, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, ElementRef, QueryList, ViewChildren, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { filter } from 'rxjs/operators';
-import { SidebarComponent } from '../../components/sidebar/sidebar.component'; // Assurez-vous que le chemin est correct
-import { HeaderComponent } from '../../components/header/header.component'; // Assurez-vous que le chemin est correct
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, SidebarComponent, HeaderComponent],
+  imports: [
+    ReactiveFormsModule, 
+    CommonModule,
+  ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent implements AfterViewInit {
-  loginForm: FormGroup;
-  codeForm: FormGroup;
-  showPassword = false;
-  isCodeMode = false;
-  codeControls = Array(4).fill(null);
-  errorMessage: string = '';
-  attempts: number = 0;
+  // System Constants
+  readonly CURRENT_UTC_DATETIME: string = '2025-02-25 17:20:14';
+  readonly CURRENT_USER: string = 'Antoine627';
+
+  private readonly BLOCK_STORAGE_KEY = 'loginBlockedUntil';
+  private readonly ATTEMPTS_STORAGE_KEY = 'loginAttempts';
+
+
+  // Form Groups
+  loginForm!: FormGroup;
+  codeForm!: FormGroup;
+
+  // États de blocage et compteur
   isBlocked: boolean = false;
   countdown: number = 30;
   countdownDuration: number = 30;
-  interval: any;
+
+  // UI States
+  showPassword: boolean = false;
+  isCodeMode: boolean = false;
   showCodeInputs: boolean = true;
-  remainingAttempts: number = 3;
 
-  // Ajoutez ces propriétés
-  stockAlerts: any[] = [];
+  private countdownInterval?: any;
 
+  // Code Input Configuration
+  codeControls = Array(4).fill(null);
   @ViewChildren('codeInput') codeInputs!: QueryList<ElementRef>;
   @ViewChild('firstInput') firstInput!: ElementRef;
+  @ViewChild('emailInput') emailInput!: ElementRef;
 
-  isAuthPage: boolean = false;
+  // Error Handling
+  errorMessage: string = '';
+  attempts: number = 0;
+  remainingAttempts: number = 3;
+
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private elementRef: ElementRef,
+    private cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe((event: NavigationEnd) => {
-        this.isAuthPage = event.url === '/login'; // Adaptez le chemin selon votre configuration
-      });
+    this.initializeForms();
+    this.loadSavedMode();
+    this.checkBlockStatus();
+  }
 
+
+  private checkBlockStatus(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const blockedUntil = localStorage.getItem(this.BLOCK_STORAGE_KEY);
+      const savedAttempts = localStorage.getItem(this.ATTEMPTS_STORAGE_KEY);
+
+      if (blockedUntil) {
+        const blockEndTime = new Date(blockedUntil).getTime();
+        const currentTime = new Date().getTime();
+
+        if (blockEndTime > currentTime) {
+          this.isBlocked = true;
+          this.showCodeInputs = false;
+          const remainingTime = Math.ceil((blockEndTime - currentTime) / 1000);
+          this.countdown = remainingTime;
+          this.startCountdown();
+        } else {
+          localStorage.removeItem(this.BLOCK_STORAGE_KEY);
+          localStorage.removeItem(this.ATTEMPTS_STORAGE_KEY);
+        }
+      }
+
+      if (savedAttempts) {
+        this.attempts = parseInt(savedAttempts, 10);
+        this.remainingAttempts = Math.max(0, 3 - this.attempts);
+      }
+    }
+  }
+
+  // Lifecycle Hooks
+  ngAfterViewInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      setTimeout(() => {
+        this.focusOnFirstInput();
+      }, 0);
+    }
+  }
+
+  // Initialization Methods
+  private initializeForms(): void {
+    // Formulaire de connexion avec des validations plus appropriées
+    this.loginForm = this.fb.group({
+      email: ['', [
+        Validators.required,
+        Validators.email
+      ]],
+      password: ['', [
+        Validators.required,
+        Validators.minLength(6)
+      ]]
+    });
+
+    // Formulaire de code
+    const codeControls: any = {};
+    for (let i = 0; i < 4; i++) {
+      codeControls[`digit${i}`] = ['', [
+        Validators.required,
+        Validators.pattern('^[0-9]$')
+      ]];
+    }
+    this.codeForm = this.fb.group(codeControls);
+
+    // Ajouter un écouteur de changements sur le formulaire
+    this.loginForm.statusChanges.subscribe(status => {
+      console.log('Form Status:', status);
+      console.log('Form Value:', this.loginForm.value);
+      console.log('Form Errors:', this.loginForm.errors);
+    });
+  }
+
+  private loadSavedMode(): void {
     if (isPlatformBrowser(this.platformId)) {
       const savedMode = localStorage.getItem('loginMode');
       this.isCodeMode = savedMode === 'code';
     }
+  }
 
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
-    });
-
-    const codeControls: any = {};
-    for (let i = 0; i < 4; i++) {
-      codeControls[`digit${i}`] = ['', [Validators.required, Validators.pattern('^[0-9]$')]];
+  // Form Management Methods
+  resetForms(): void {
+    if (!this.isBlocked) {
+      if (this.isCodeMode) {
+        this.codeForm.reset();
+        Object.keys(this.codeForm.controls).forEach(key => {
+          this.codeForm.get(key)?.setErrors(null);
+        });
+      } else {
+        this.loginForm.reset();
+        Object.keys(this.loginForm.controls).forEach(key => {
+          this.loginForm.get(key)?.setErrors(null);
+        });
+      }
+      this.cdr.detectChanges();
+      setTimeout(() => this.focusOnFirstInput(), 0);
     }
-    this.codeForm = this.fb.group(codeControls);
   }
 
-  ngAfterViewInit() {
-    this.focusOnFirstInput();
-  }
-
-  toggleMode(isCode: boolean) {
+  // UI Event Handlers
+  toggleMode(isCode: boolean): void {
     this.isCodeMode = isCode;
+    this.errorMessage = '';
+    this.resetForms();
+    
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('loginMode', isCode ? 'code' : 'email');
     }
-    if (isCode) {
-      this.codeForm.reset();
-      this.focusOnFirstInput();
-    } else {
-      this.loginForm.reset();
-    }
+    
+    this.cdr.detectChanges();
+    setTimeout(() => this.focusOnFirstInput(), 0);
   }
 
-  togglePasswordVisibility() {
+  togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }
 
-  onCodeInput(event: Event, index: number) {
+  onForgotPassword(): void {
+    this.router.navigate(['/forget-password']);
+  }
+
+  // Form Submission Methods
+  onSubmit(): void {
+    this.isCodeMode ? this.onSubmitCode() : this.onSubmitEmail();
+  }
+
+  private onSubmitEmail(): void {
+    if (this.loginForm.invalid) return;
+    
+    const { email, password } = this.loginForm.value;
+    this.errorMessage = '';
+    
+    this.authService.login(email, password).subscribe({
+      next: (res) => {
+        if (res && res.data && res.data.token) {
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('lastLoginTime', this.CURRENT_UTC_DATETIME);
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.errorMessage = 'Réponse du serveur invalide';
+          this.handleError({ status: 500 });
+        }
+      },
+      error: (err) => {
+        console.log('Erreur de connexion:', err);
+        this.attempts++;
+        this.remainingAttempts = Math.max(0, 3 - this.attempts);
+
+        if (err.status === 401) {
+          this.errorMessage = `Identifiants incorrects. Tentatives restantes : ${this.remainingAttempts}`;
+          if (this.attempts >= 3) {
+            this.blockUser();
+          }
+        } else {
+          this.errorMessage = err.message || 'Erreur de connexion au serveur';
+        }
+
+        this.resetForms();
+        this.cdr.detectChanges();
+        this.focusOnFirstInput();
+      }
+    });
+  }
+
+  private onSubmitCode(): void {
+    if (this.isBlocked || this.codeForm.invalid) return;
+    
+    const code = Object.values(this.codeForm.value).join('');
+    this.errorMessage = '';
+    
+    this.authService.loginWithCode(code).subscribe({
+      next: (res) => {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('lastLoginTime', this.CURRENT_UTC_DATETIME);
+        this.router.navigate(['/dashboard']);
+        this.resetAttempts();
+        this.resetForms();
+      },
+      error: (err) => this.handleError(err)
+    });
+  }
+
+  // Code Input Handlers
+  onCodeInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
     const value = input.value;
 
@@ -107,123 +264,148 @@ export class LoginComponent implements AfterViewInit {
     }
   }
 
-  onKeyDown(event: KeyboardEvent, index: number) {
-    const control = this.codeForm.get(`digit${index}`);
-    if (event.key === 'Backspace' && index > 0 && control) {
-      const controlValue = control.value;
-      if (!controlValue) {
+  onKeyDown(event: KeyboardEvent, index: number): void {
+    if (event.key === 'Backspace' && index > 0) {
+      const current = this.codeForm.get(`digit${index}`);
+      if (current && !current.value) {
         const prevInput = this.codeInputs.toArray()[index - 1].nativeElement;
         prevInput.focus();
       }
     }
   }
 
-  onSubmit() {
-    if (this.isCodeMode) {
-      this.onSubmitCode();
-    } else {
-      this.onSubmitEmail();
-    }
-  }
 
-  onSubmitEmail() {
-    if (this.loginForm.invalid) return;
-    this.errorMessage = '';
-
-    const { email, password } = this.loginForm.value;
-    this.authService.login(email, password).subscribe({
-      next: (res) => {
-        localStorage.setItem('token', res.data.token);
-        this.router.navigate(['/../components/dashboard']);
-        this.loginForm.reset();
-      },
-      error: (err) => this.handleError(err)
-    });
-  }
-
-  onSubmitCode() {
-    if (this.isBlocked || this.codeForm.invalid) return;
-    this.errorMessage = '';
-
-    const { digit0, digit1, digit2, digit3 } = this.codeForm.value;
-    const code = `${digit0}${digit1}${digit2}${digit3}`;
-
-    this.authService.loginWithCode(code).subscribe({
-      next: (res) => {
-        localStorage.setItem('token', res.data.token);
-        this.router.navigate(['/dashboard']);
-        this.codeForm.reset();
-        this.resetAttempts();
-      },
-      error: (err) => this.handleError(err)
-    });
-  }
-
-  onForgotPassword() {
-    this.router.navigate(['/forget-password']);
-  }
-
-  handleError(error: any) {
-    if (error.status === 400) {
-      this.errorMessage = 'Veuillez remplir correctement les champs requis.';
-    } else if (error.status === 401) {
-      this.attempts++;
-      this.remainingAttempts = 3 - this.attempts;
-      this.errorMessage = `Identifiants incorrects. Tentatives restantes : ${this.remainingAttempts}`;
-      if (this.attempts >= 3) {
-        this.blockUser();
-      } else if (this.isCodeMode) {
-        this.codeForm.reset();
-        this.focusOnFirstInput();
-      }
-    } else if (error.status === 404) {
-      this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
-    } else {
-      this.errorMessage = 'Une erreur inattendue est survenue. Veuillez réessayer plus tard.';
-    }
-  }
-
-  blockUser() {
+  // Helper Methods
+  private blockUser(): void {
     this.isBlocked = true;
     this.showCodeInputs = false;
-    this.countdownDuration = this.countdown;
-    this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
+    this.countdown = this.countdownDuration;
 
-    this.interval = setInterval(() => {
+    if (isPlatformBrowser(this.platformId)) {
+      const blockEndTime = new Date(Date.now() + this.countdownDuration * 1000);
+      localStorage.setItem(this.BLOCK_STORAGE_KEY, blockEndTime.toISOString());
+      localStorage.setItem(this.ATTEMPTS_STORAGE_KEY, this.attempts.toString());
+    }
+
+    this.startCountdown();
+  }
+
+  private startCountdown(): void {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+
+    this.countdownInterval = setInterval(() => {
       this.countdown--;
-      this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
       if (this.countdown <= 0) {
-        clearInterval(this.interval);
-        this.resetAttempts();
+        this.unblockUser();
       }
     }, 1000);
   }
 
-  resetAttempts() {
+
+  private unblockUser(): void {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+    
+    this.isBlocked = false;
+    this.showCodeInputs = true;
+    this.attempts = 0;
+    this.remainingAttempts = 3;
+    this.errorMessage = '';
+    
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem(this.BLOCK_STORAGE_KEY);
+      localStorage.removeItem(this.ATTEMPTS_STORAGE_KEY);
+    }
+    
+    this.resetForms();
+    this.focusOnFirstInput();
+  }
+
+  handleError(error: any) {
+    this.attempts++;
+    this.remainingAttempts = Math.max(0, 3 - this.attempts);
+  
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem(this.ATTEMPTS_STORAGE_KEY, this.attempts.toString());
+    }
+  
+    if (this.attempts >= 3) {
+      this.blockUser();
+      this.errorMessage = 'Trop de tentatives. Compte bloqué temporairement.';
+      return;
+    }
+  
+    switch (error.status) {
+      case 400:
+        this.errorMessage = 'Veuillez remplir correctement tous les champs.';
+        break;
+      case 401:
+        this.errorMessage = `Identifiants incorrects. Tentatives restantes : ${this.remainingAttempts}`;
+        break;
+      case 404:
+        this.errorMessage = 'Utilisateur non trouvé.';
+        break;
+      default:
+        this.errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+    }
+  
+    this.resetForms();
+    this.cdr.detectChanges();
+    setTimeout(() => this.focusOnFirstInput(), 0);
+  }
+
+  private resetAttempts(): void {
     this.attempts = 0;
     this.remainingAttempts = 3;
     this.isBlocked = false;
     this.showCodeInputs = true;
     this.countdown = 30;
     this.errorMessage = '';
+    clearInterval(this.countdownInterval);
   }
 
-  focusOnFirstInput() {
-    setTimeout(() => {
-      if (this.firstInput) {
+  // Mise à jour de la méthode focusOnFirstInput
+  private focusOnFirstInput(): void {
+    if (!isPlatformBrowser(this.platformId) || this.isBlocked) return;
+  
+    if (this.isCodeMode) {
+      if (this.firstInput?.nativeElement) {
         this.firstInput.nativeElement.focus();
+        this.firstInput.nativeElement.select();
       }
-    }, 100);
+    } else {
+      if (this.emailInput?.nativeElement) {
+        this.emailInput.nativeElement.focus();
+        this.emailInput.nativeElement.select();
+      }
+    }
   }
 
-  isInvalid(form: FormGroup, controlName: string) {
+
+  // Validator Helper
+  isInvalid(form: FormGroup, controlName: string): boolean {
     const control = form.get(controlName);
-    return control?.invalid && (control.dirty || control.touched);
+    if (!control) return false;
+
+    return control.invalid && (control.dirty || control.touched);
   }
 
-  // Ajoutez cette méthode si nécessaire
-  calculateAutonomy(stock: number): number {
-    // Implémentez la logique pour calculer l'autonomie
-    return stock / 10; // Exemple simplifié
+  isFormValid(): boolean {
+    if (!this.loginForm) return false;
+    
+    const emailControl = this.loginForm.get('email');
+    const passwordControl = this.loginForm.get('password');
+
+    return !!emailControl?.valid && !!passwordControl?.valid;
+  }
+
+  // Cleanup
+  ngOnDestroy(): void {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
   }
 }

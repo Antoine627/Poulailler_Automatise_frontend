@@ -1,6 +1,5 @@
 <div class="app-container">
   <!-- Sidebar -->
-  <app-sidebar></app-sidebar>
 
   <!-- Contenu principal -->
   <div class="main-content">
@@ -8,12 +7,18 @@
       <!-- Alert Banner -->
       <div class="alert" *ngIf="stockAlerts && stockAlerts.length > 0">
         <i class="fas fa-exclamation-triangle"></i>
-        <span>Attention: Niveau d'aliments bas ! Stock restant pour {{ calculateAutonomy(stockAlerts[0].currentStock) }} jours.</span>
+        <span>Attention : Niveau d'aliments bas ! Stock restant pour {{ calculateAutonomy(stockAlerts[0].currentStock) }} jours.</span>
       </div>
 
-      <!-- Dashboard Grid -->
+      <!-- Message d'information -->
+      <div class="info-message" *ngIf="!canActivateSystems()">
+        <i class="fas fa-info-circle"></i>
+        Veuillez créer au moins un programme d'alimentation pour activer les systèmes.
+      </div>
+
+      <!-- Grille du tableau de bord -->
       <div class="dashboard-grid">
-        <!-- Feeding System Card -->
+        <!-- Carte du système d'alimentation -->
         <div class="card card-lg">
           <div class="card-header">
             <h2 class="card-title">
@@ -22,12 +27,14 @@
             </h2>
           </div>
 
-          <!-- System Status -->
+          <!-- État du système -->
           <div class="status-details">
             <div class="status-item">
               <div class="status-label">État du système</div>
               <div class="status-value" [ngClass]="{'active': isFeedingSystemActive, 'inactive': !isFeedingSystemActive}">
-                <button class="toggle-btn" (click)="toggleFeedingSystem()">
+                <button class="toggle-btn" 
+                        (click)="toggleFeedingSystem()" 
+                        [disabled]="!feedingPrograms || feedingPrograms.length === 0">
                   {{ isFeedingSystemActive ? 'En marche' : 'Arrêté' }}
                   <i class="fas" [ngClass]="{'fa-play-circle': !isFeedingSystemActive, 'fa-stop-circle': isFeedingSystemActive}"></i>
                 </button>
@@ -49,23 +56,19 @@
             </div>
           </div>
 
-          <!-- Food Tank Level -->
+          <!-- Niveau du réservoir d'aliments -->
           <div class="progress-container">
             <h3>Niveau du réservoir d'aliments</h3>
             <div class="progress-bar">
               <div class="progress" 
                    [style.width.%]="foodTankLevel"
-                   [ngClass]="{
-                     'low': foodTankLevel < 20,
-                     'medium': foodTankLevel >= 20 && foodTankLevel < 50,
-                     'high': foodTankLevel >= 50
-                   }">
+                   [ngClass]="{'low': foodTankLevel < 20, 'medium': foodTankLevel >= 20 && foodTankLevel < 50, 'high': foodTankLevel >= 50}">
                 <div class="progress-text">{{ foodTankLevel }}%</div>
               </div>
             </div>
           </div>
 
-          <!-- Feeding Programs -->
+          <!-- Programmes d'alimentation -->
           <div class="programs-container">
             <h3>Programmes d'alimentation</h3>
             <div *ngIf="feedingPrograms && feedingPrograms.length > 0; else noPrograms">
@@ -75,7 +78,7 @@
                     <label [for]="'type-' + i">Type</label>
                     <input [id]="'type-' + i"
                            type="text"
-                           [(ngModel)]="program.type"
+                           [(ngModel)]="program.feedType"
                            [name]="'type-' + i"
                            disabled>
                   </div>
@@ -115,8 +118,9 @@
               <p class="no-data">Aucun programme d'alimentation enregistré.</p>
             </ng-template>
           </div>
+        </div>
 
-        <!-- Water System Card -->
+        <!-- Carte du système d'eau -->
         <div class="card card-lg">
           <div class="card-header">
             <h2 class="card-title">
@@ -129,7 +133,9 @@
             <div class="status-item">
               <div class="status-label">État du système</div>
               <div class="status-value" [ngClass]="{'active': isWaterSystemActive, 'inactive': !isWaterSystemActive}">
-                <button class="toggle-btn" (click)="toggleWaterSystem()">
+                <button class="toggle-btn" 
+                        (click)="toggleWaterSystem()" 
+                        [disabled]="!feedingPrograms || feedingPrograms.length === 0">
                   {{ isWaterSystemActive ? 'Actif' : 'Inactif' }}
                   <i class="fas" [ngClass]="{'fa-play-circle': !isWaterSystemActive, 'fa-stop-circle': isWaterSystemActive}"></i>
                 </button>
@@ -142,18 +148,14 @@
             <div class="progress-bar">
               <div class="progress" 
                    [style.width.%]="waterTankLevel"
-                   [ngClass]="{
-                     'low': waterTankLevel < 20,
-                     'medium': waterTankLevel >= 20 && waterTankLevel < 50,
-                     'high': waterTankLevel >= 50
-                   }">
+                   [ngClass]="{'low': waterTankLevel < 20, 'medium': waterTankLevel >= 20 && waterTankLevel < 50, 'high': waterTankLevel >= 50}">
                 <div class="progress-text">{{ waterTankLevel }}%</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Daily Statistics Card -->
+        <!-- Carte des statistiques quotidiennes -->
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">
@@ -165,11 +167,11 @@
           <div class="stat-grid">
             <div class="stat-box">
               <h3>Aliments consommés</h3>
-              <div class="value">{{ dailyFoodConsumption | number:'1.0-1' }} kg</div>
+              <div class="value">{{ dailyFoodConsumption | number:'1.1-1' }} kg</div>
             </div>
             <div class="stat-box">
               <h3>Eau consommée</h3>
-              <div class="value">{{ dailyWaterConsumption | number:'1.0-1' }} L</div>
+              <div class="value">{{ dailyWaterConsumption | number:'1.1-1' }} L</div>
             </div>
             <div class="stat-box">
               <h3>Distributions</h3>
@@ -177,8 +179,6 @@
             </div>
           </div>
         </div>
-
-        
       </div>
     </div>
   </div>

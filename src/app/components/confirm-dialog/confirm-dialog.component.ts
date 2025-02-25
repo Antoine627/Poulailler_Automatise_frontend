@@ -1,6 +1,19 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
+
+// Définir une interface pour les données du dialogue
+interface DialogData {
+  title: string;
+  message: string;
+  confirmButtonText?: string;
+  cancelButtonText?: string;
+  confirmButtonIcon?: string;
+  cancelButtonIcon?: string;
+  confirmButtonColor?: string;
+  cancelButtonColor?: string;
+}
 
 @Component({
   selector: 'app-confirm-dialog',
@@ -10,14 +23,18 @@ import { CommonModule } from '@angular/common';
       <p>{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>{{ data.cancelButtonText }}</button>
-      <button mat-button [mat-dialog-close]="true" color="warn">
+      <button mat-button mat-dialog-close aria-label="Annuler" [ngStyle]="{'color': data.cancelButtonColor}">
+        <mat-icon *ngIf="data.cancelButtonIcon">{{ data.cancelButtonIcon }}</mat-icon>
+        {{ data.cancelButtonText }}
+      </button>
+      <button mat-button [mat-dialog-close]="true" [ngStyle]="{'background-color': data.confirmButtonColor, 'color': 'white'}" aria-label="Confirmer">
+        <mat-icon *ngIf="data.confirmButtonIcon">{{ data.confirmButtonIcon }}</mat-icon>
         {{ data.confirmButtonText }}
       </button>
     </mat-dialog-actions>
   `,
   standalone: true,
-  imports: [CommonModule, MatDialogModule],
+  imports: [CommonModule, MatDialogModule, MatIconModule],
   styles: [
     `
       h2.mat-dialog-title {
@@ -38,11 +55,11 @@ import { CommonModule } from '@angular/common';
 
         button {
           margin-left: 0.5rem;
+          transition: transform 0.3s ease;
         }
 
-        button[color='warn'] {
-          background-color: #dc3545;
-          color: white;
+        button:hover {
+          transform: scale(1.05);
         }
       }
     `,
@@ -51,15 +68,14 @@ import { CommonModule } from '@angular/common';
 export class ConfirmDialogComponent {
   constructor(
     @Inject(MAT_DIALOG_DATA)
-    public data: {
-      title: string;
-      message: string;
-      confirmButtonText?: string; // Optionnel
-      cancelButtonText?: string; // Optionnel
-    }
+    public data: DialogData
   ) {
     // Définir des valeurs par défaut si elles ne sont pas fournies
     this.data.confirmButtonText = this.data.confirmButtonText || 'Confirmer';
     this.data.cancelButtonText = this.data.cancelButtonText || 'Annuler';
+    this.data.confirmButtonIcon = this.data.confirmButtonIcon || 'check_circle';
+    this.data.cancelButtonIcon = this.data.cancelButtonIcon || 'cancel';
+    this.data.confirmButtonColor = this.data.confirmButtonColor || '#09B462';
+    this.data.cancelButtonColor = this.data.cancelButtonColor || '#666';
   }
 }

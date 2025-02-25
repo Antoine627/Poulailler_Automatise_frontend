@@ -267,3 +267,78 @@
   overflow: hidden; /* Cache le texte qui dépasse */
   text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est trop long */
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+
+  button {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border-color);
+    background-color: white;
+    color: var(--secondary-color);
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background-color: var(--background-color);
+      border-color: var(--primary-color);
+    }
+
+    &.active {
+      background-color: var(--primary-color);
+      color: var(--text-color);
+      border-color: var(--primary-color);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .pagination-nav {
+    font-size: 0.875rem;
+    padding: 0 1rem;
+  }
+
+  .ellipsis {
+    color: var(--secondary-color);
+    padding: 0 0.5rem;
+  }
+
+  .pagination-info {
+    margin-left: 1rem;
+    color: var(--secondary-color);
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .pagination {
+    gap: 0.25rem;
+
+    button {
+      min-width: 35px;
+      height: 35px;
+      padding: 0 0.5rem;
+    }
+
+    .pagination-info {
+      width: 100%;
+      text-align: center;
+      margin-top: 1rem;
+      margin-left: 0;
+    }
+  }
+}

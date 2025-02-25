@@ -4,11 +4,24 @@ import { ProductionService } from '../../services/production.service';
 import { forkJoin } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SidebarComponent } from '../sidebar/sidebar.component';
+
+interface FeedRequirement {
+  totalFeedConsumptionKg: number;
+  bagsNeeded: number;
+  totalCostFCFA: number;
+}
+
+interface FeedRequirements {
+  demarrage: FeedRequirement;
+  croissance: FeedRequirement;
+  finition: FeedRequirement;
+}
 
 @Component({
   selector: 'app-production',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SidebarComponent],
   templateUrl: './production.component.html',
   styleUrls: ['./production.component.css'],
 })
@@ -23,9 +36,15 @@ export class ProductionComponent implements OnInit {
   // Propriétés pour les calculs
   feedCalculation = {
     chickenCount: 0,
-    feedPerChicken: 0,
-    bagWeight: 25, // Poids d'un sac en kg
-    result: 0,
+    numberOfWeeks: 0,
+    result: {
+      demarrage: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 },
+      croissance: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 },
+      finition: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 }
+    } as FeedRequirements,
+    totalFeedConsumptionKg: 0,
+    totalBagsNeeded: 0,
+    totalCostFCFA: 0,
     bagsRequired: 0,
   };
 
@@ -41,6 +60,9 @@ export class ProductionComponent implements OnInit {
     deaths: 0,
     updatedProduction: 0,
   };
+
+  feedBagSize = 50;
+  feedPrices: { [key: string]: number } = { 'demarrage': 15000, 'croissance': 17000, 'finition': 18000 };
 
   constructor(
     private costService: CostService,
@@ -76,11 +98,52 @@ export class ProductionComponent implements OnInit {
 
   // Calculer les besoins en alimentation
   calculateFeedRequirements() {
-    this.feedCalculation.result =
-      this.feedCalculation.chickenCount * this.feedCalculation.feedPerChicken;
-    this.feedCalculation.bagsRequired = Math.ceil(
-      this.feedCalculation.result / this.feedCalculation.bagWeight
-    );
+    const { chickenCount, numberOfWeeks } = this.feedCalculation;
+
+    // Initialiser les totaux pour chaque type d'aliment
+    const feedRequirements: FeedRequirements = {
+      demarrage: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 },
+      croissance: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 },
+      finition: { totalFeedConsumptionKg: 0, bagsNeeded: 0, totalCostFCFA: 0 }
+    };
+
+    // Calcul de la consommation totale et du coût pour chaque phase
+    for (let week = 1; week <= numberOfWeeks; week++) {
+      let feedType: keyof FeedRequirements;
+      let weeklyRate: number;
+
+      if (week === 1) {
+        feedType = 'demarrage';
+        weeklyRate = 0.35;
+      } else if (week >= 2 && week <= 4) {
+        feedType = 'croissance';
+        weeklyRate = 0.65;
+      } else {
+        feedType = 'finition';
+        weeklyRate = 0.9;
+      }
+
+      feedRequirements[feedType].totalFeedConsumptionKg += weeklyRate * chickenCount;
+    }
+
+    // Calculer les sacs nécessaires et le coût total pour chaque type d'aliment
+    let totalFeedConsumptionKg = 0;
+    let totalBagsNeeded = 0;
+    let totalCostFCFA = 0;
+
+    for (const feedType of Object.keys(feedRequirements)) {
+      feedRequirements[feedType as keyof FeedRequirements].bagsNeeded = Math.ceil(feedRequirements[feedType as keyof FeedRequirements].totalFeedConsumptionKg / this.feedBagSize);
+      feedRequirements[feedType as keyof FeedRequirements].totalCostFCFA = feedRequirements[feedType as keyof FeedRequirements].bagsNeeded * this.feedPrices[feedType as keyof typeof this.feedPrices];
+
+      totalFeedConsumptionKg += feedRequirements[feedType as keyof FeedRequirements].totalFeedConsumptionKg;
+      totalBagsNeeded += feedRequirements[feedType as keyof FeedRequirements].bagsNeeded;
+      totalCostFCFA += feedRequirements[feedType as keyof FeedRequirements].totalCostFCFA;
+    }
+
+    this.feedCalculation.result = feedRequirements;
+    this.feedCalculation.totalFeedConsumptionKg = totalFeedConsumptionKg;
+    this.feedCalculation.totalBagsNeeded = totalBagsNeeded;
+    this.feedCalculation.totalCostFCFA = totalCostFCFA;
   }
 
   // Calculer la rentabilité

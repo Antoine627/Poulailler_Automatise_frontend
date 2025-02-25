@@ -125,7 +125,7 @@ export class AuthService {
    * @returns Observable<any> - La réponse du serveur.
    */
   updatePassword(currentPassword: string, newPassword: string): Observable<any> {
-    return this.http.put(`${this.apiUrl}/update-password`, { currentPassword, newPassword }, { headers: this.getHeader() }).pipe(
+    return this.http.put(`${this.apiUrl}/updatePassword`, { currentPassword, newPassword }, { headers: this.getHeader() }).pipe(
       catchError(this.handleError) // Gestion des erreurs
     );
   }
@@ -164,6 +164,28 @@ export class AuthService {
     );
   }
 
+
+  // Méthode pour confirmer le changement de mot de passe
+// Méthode pour confirmer le changement de mot de passe
+confirmPasswordChange(token: string): Observable<any> {
+  return this.http.get<any>(`${this.apiUrl}/confirm-password-change/${token}`)
+    .pipe(
+      catchError(error => {
+        return throwError(() => error);
+      })
+    );
+}
+
+// Méthode pour annuler le changement de mot de passe
+cancelPasswordChange(token: string): Observable<any> {
+  return this.http.get<any>(`${this.apiUrl}/cancel-password-change/${token}`)
+    .pipe(
+      catchError(error => {
+        return throwError(() => error);
+      })
+    );
+}
+
   // --------------------------
   // Méthodes de gestion du code
   // --------------------------
@@ -173,7 +195,7 @@ export class AuthService {
    * @returns Observable<any> - La réponse du serveur.
    */
   updateCode(): Observable<any> {
-    return this.http.put(`${this.apiUrl}/update-code`, {}, { headers: this.getHeader() }).pipe(
+    return this.http.post(`${this.apiUrl}/updateCode`, {}, { headers: this.getHeader() }).pipe(
       catchError(this.handleError) // Gestion des erreurs
     );
   }

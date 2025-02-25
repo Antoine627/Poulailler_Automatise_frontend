@@ -1,7 +1,6 @@
 import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../header/header.component';
-import { SidebarComponent } from '../sidebar/sidebar.component';
 import { EnvironmentCardComponent } from '../environment-card/environment-card.component';
 import { ControlPanelComponent } from '../control-panel/control-panel.component';
 import { FeedingScheduleComponent } from '../feeding-schedule/feeding-schedule.component';
@@ -12,7 +11,6 @@ import { FeedingScheduleComponent } from '../feeding-schedule/feeding-schedule.c
   imports: [
     CommonModule,
     HeaderComponent,
-    SidebarComponent,
     EnvironmentCardComponent,
     ControlPanelComponent,
     FeedingScheduleComponent

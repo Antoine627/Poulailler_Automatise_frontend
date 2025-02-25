@@ -27,11 +27,10 @@
   
 
   export interface LowStockAlert {
-    type: string;
-    currentStock: number;
-    unit: string;
-    minQuantity: number;
+    type: string;          // Type de stock (ex: "feed", "water")
+    currentStock: number;  // Quantité actuelle en stock
+    unit: string;          // Unité de mesure (ex: "kg", "L")
+    minQuantity: number;   // Quantité minimale requise
   }
-  
 
   
