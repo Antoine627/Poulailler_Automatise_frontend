@@ -13,6 +13,7 @@ import { SettingsComponent } from './components/settings/settings.component';
 
 import { LoginComponent } from './pages/login/login.component';
 import { AuthGuard } from './auth.guard'; // Importez le guard
+import { TestComponent } from './components/test/test.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' }, // Redirection par défaut vers le login
@@ -28,5 +29,7 @@ export const routes: Routes = [
   { path: 'productions', component: ProductionComponent, canActivate: [AuthGuard]},
   { path: 'historiques', component: HistoriquesComponent, canActivate: [AuthGuard]},
   { path: 'parametres', component: SettingsComponent, canActivate: [AuthGuard]},
+
+  { path: 'test', component: TestComponent, canActivate: [AuthGuard]},
   { path: '**', redirectTo: '/login' } // Redirection en cas de route non trouvée
 ];

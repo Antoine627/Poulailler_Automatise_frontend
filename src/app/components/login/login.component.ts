@@ -1,0 +1,256 @@
+import { Component, ElementRef, QueryList, ViewChildren, ViewChild, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
+import { Router, NavigationEnd } from '@angular/router';
+import { ReactiveFormsModule } from '@angular/forms';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { filter } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [ReactiveFormsModule, CommonModule],
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.css']
+})
+export class LoginComponent implements AfterViewInit {
+  loginForm: FormGroup;
+  codeForm: FormGroup;
+  showPassword = false;
+  isCodeMode = false;
+  codeControls = Array(4).fill(null);
+  errorMessage: string = '';
+  attempts: number = 0;
+  isBlocked: boolean = false;
+  countdown: number = 3;
+  countdownDuration: number = 30;
+  interval: any;
+  showCodeInputs: boolean = true;
+  remainingAttempts: number = 3;
+
+  // Ajoutez ces propriétés
+  stockAlerts: any[] = [];
+
+  @ViewChildren('codeInput') codeInputs!: QueryList<ElementRef>;
+  @ViewChild('firstInput') firstInput!: ElementRef;
+
+  isAuthPage: boolean = false;
+
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: NavigationEnd) => {
+        this.isAuthPage = event.url === '/login'; // Adaptez le chemin selon votre configuration
+      });
+
+    if (isPlatformBrowser(this.platformId)) {
+      const savedMode = localStorage.getItem('loginMode');
+      this.isCodeMode = savedMode === 'code';
+    }
+
+    this.loginForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+
+    const codeControls: any = {};
+    for (let i = 0; i < 4; i++) {
+      codeControls[`digit${i}`] = ['', [Validators.required, Validators.pattern('^[0-9]$')]];
+    }
+    this.codeForm = this.fb.group(codeControls);
+  }
+
+  ngAfterViewInit() {
+    this.focusOnFirstInput();
+  }
+
+  toggleMode(isCode: boolean) {
+    this.isCodeMode = isCode;
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('loginMode', isCode ? 'code' : 'email');
+    }
+    if (isCode) {
+      this.codeForm.reset();
+      this.focusOnFirstInput();
+    } else {
+      this.loginForm.reset();
+    }
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
+  }
+
+  onCodeInput(event: Event, index: number) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+
+    if (!/^\d*$/.test(value)) {
+      input.value = '';
+      return;
+    }
+
+    if (value && index < 3) {
+      const nextInput = this.codeInputs.toArray()[index + 1].nativeElement;
+      nextInput.focus();
+    }
+
+    if (value && index === 3) {
+      this.onSubmitCode();
+    }
+  }
+
+  onKeyDown(event: KeyboardEvent, index: number) {
+    const control = this.codeForm.get(`digit${index}`);
+    if (event.key === 'Backspace' && index > 0 && control) {
+      const controlValue = control.value;
+      if (!controlValue) {
+        const prevInput = this.codeInputs.toArray()[index - 1].nativeElement;
+        prevInput.focus();
+      }
+    }
+  }
+
+  onSubmit() {
+    if (this.isCodeMode) {
+      this.onSubmitCode();
+    } else {
+      this.onSubmitEmail();
+    }
+  }
+
+  onSubmitEmail() {
+    if (this.loginForm.invalid) return;
+    this.errorMessage = '';
+
+    const { email, password } = this.loginForm.value;
+    this.authService.login(email, password).subscribe({
+      next: (res) => {
+        localStorage.setItem('token', res.data.token);
+        this.router.navigate(['/dashboard']);
+        this.loginForm.reset();
+      },
+      error: (err) => this.handleError(err)
+    });
+  }
+
+  onSubmitCode() {
+    if (this.isBlocked || this.codeForm.invalid) return;
+    this.errorMessage = '';
+ 
+    const { digit0, digit1, digit2, digit3 } = this.codeForm.value;
+    const code = `${digit0}${digit1}${digit2}${digit3}`;
+ 
+    this.authService.loginWithCode(code).subscribe({
+      next: (res) => {
+        localStorage.setItem('token', res.data.token);
+        this.router.navigate(['/dashboard']);
+        this.codeForm.reset();
+        this.resetAttempts();
+        this.focusOnFirstInput();  // Re-focus après soumission réussie
+      },
+      error: (err) => {
+        this.handleError(err);
+        this.codeForm.reset(); // Réinitialiser les champs de code après une tentative incorrecte
+        this.focusOnFirstInput();  // Re-focus après réinitialisation
+      }
+    });
+  }
+ 
+  
+
+  onForgotPassword() {
+    this.router.navigate(['/forget-password']);
+  }
+  focusOnFirstInput() {
+    setTimeout(() => {
+      if (this.firstInput) {
+        this.firstInput.nativeElement.focus();
+      }
+    }, 100);
+  }
+  
+
+  handleError(error: any) {
+    console.log('Error details:', error); // Pour déboguer
+  
+    if (error.status === 400) {
+      this.errorMessage = 'Veuillez remplir correctement les champs requis.';
+    } else if (error.status === 401) {
+      // Vérifier si le message d'erreur est "Code incorrect" ou autre
+      if (error.error && error.error.message === 'Code incorrect') {
+        this.errorMessage = 'Le code que vous avez fourni est incorrect ou expiré.';
+      } else {
+        // Gérer les erreurs de connexion (identifiants incorrects)
+        this.errorMessage = 'Identifiants incorrects. Tentatives restantes : ' + this.remainingAttempts;
+      }
+      this.attempts++;
+      this.remainingAttempts = 3 - this.attempts;
+  
+      if (this.attempts >= 3) {
+        this.blockUser();
+      } else if (this.isCodeMode) {
+        this.codeForm.reset();
+        this.focusOnFirstInput();
+      }
+    } else if (error.status === 404) {
+      this.errorMessage = 'Utilisateur non trouvé. Vérifiez votre email.';
+    } else if (error.status === 500) {
+      this.errorMessage = 'Erreur du serveur. Veuillez réessayer plus tard.';
+    } else {
+      // Afficher une erreur générique pour d'autres statuts d'erreur
+      this.errorMessage = `Une erreur inattendue est survenue. Code d'erreur : ${error.status}.`;
+    }
+  }
+  
+ 
+
+
+  blockUser() {
+    console.log('Tentatives dépassées, l\'utilisateur est maintenant bloqué.');
+    this.isBlocked = true;
+    this.showCodeInputs = false;
+    this.countdownDuration = this.countdown;
+    this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
+ 
+    this.interval = setInterval(() => {
+      this.countdown--;
+      this.errorMessage = `Trop de tentatives ! Réessayez dans ${this.countdown} secondes.`;
+      console.log(`Countdown: ${this.countdown}`);
+      if (this.countdown <= 0) {
+        clearInterval(this.interval);
+        this.resetAttempts();  // Réinitialiser après 30 secondes
+      }
+    }, 1000);
+ }
+ 
+  
+  
+
+ resetAttempts() {
+  this.attempts = 0;
+  this.remainingAttempts = 3;
+  this.isBlocked = false;
+  this.showCodeInputs = true;
+  this.countdown = 30;
+  this.errorMessage = '';
+}
+
+
+  
+  isInvalid(form: FormGroup, controlName: string) {
+    const control = form.get(controlName);
+    return control?.invalid && (control.dirty || control.touched);
+  }
+
+  // Ajoutez cette méthode si nécessaire
+  calculateAutonomy(stock: number): number {
+    // Implémentez la logique pour calculer l'autonomie
+    return stock / 10; // Exemple simplifié
+  }
+}

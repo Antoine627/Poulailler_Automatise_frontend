@@ -17,8 +17,8 @@ import { Subscription } from 'rxjs';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit, OnDestroy {
-  isAuthPage: boolean = false;
+export class AppComponent/*  implements OnInit *//* , OnDestroy  */{
+  /* isAuthPage: boolean = false;
   private routerSubscription: Subscription | null = null;
 
   // Liste des routes d'authentification
@@ -75,4 +75,4 @@ export class AppComponent implements OnInit, OnDestroy {
     // Enlever les paramètres de requête et fragments
     return url.split('?')[0].split('#')[0];
   }
-}
+ */}

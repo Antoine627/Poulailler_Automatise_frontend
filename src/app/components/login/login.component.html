@@ -1,0 +1,105 @@
+<div class="page-wrapper auth-page">
+    <div class="login-container">
+      <div class="login-form">
+        <div class="logo">
+          <img src="assets/logo.png" alt="Logo de Connexion" />
+        </div>
+  
+        <div class="login-tabs">
+          <div class="tab" [class.active]="!isCodeMode" (click)="toggleMode(false)">
+            Email et mot de passe
+          </div>
+          <div class="tab" [class.active]="isCodeMode" (click)="toggleMode(true)">
+            Code
+          </div>
+        </div>
+  
+        <h1>BIENVENUE</h1>
+  
+        <p class="subtitle">
+          {{ isCodeMode ? 'Veuillez saisir votre code de connexion' : 'Veuillez saisir vos informations de connexion, email et mot de passe' }}
+        </p>
+  
+        <!-- Form pour Email/Mot de passe -->
+        <form *ngIf="!isCodeMode" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+          <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'email')}">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              formControlName="email"
+              placeholder="Entrez votre email"
+              class="form-control"
+            />
+            <p *ngIf="isInvalid(loginForm, 'email')" class="error">
+              Email invalide
+            </p>
+          </div>
+  
+          <div class="form-group" [ngClass]="{'invalid': isInvalid(loginForm, 'password')}">
+            <label for="password">Mot de passe</label>
+            <div class="password-input">
+              <input
+                [type]="showPassword ? 'text' : 'password'"
+                id="password"
+                formControlName="password"
+                placeholder="Entrez votre mot de passe"
+                class="form-control"
+              />
+              <button type="button" class="toggle-password" (click)="togglePasswordVisibility()">
+                <i class="fas fa-eye"></i> <!-- icône pour afficher/masquer le mot de passe -->
+              </button>
+            </div>
+            <p *ngIf="isInvalid(loginForm, 'password')" class="error">
+              Mot de passe invalide
+            </p>
+          </div>
+  
+          <button type="submit" class="btn btn-primary submit-btn" [disabled]="loginForm.invalid">
+            Se connecter
+          </button>
+  
+          <p class="forgot-password">
+            <a (click)="onForgotPassword()">Mot de passe oublié ?</a>
+          </p>
+  
+          <!-- Message d'erreur global -->
+          <p *ngIf="errorMessage" class="error global-error">{{ errorMessage }}</p>
+        </form>
+  
+        <!-- Form pour Code -->
+        <form *ngIf="isCodeMode" [formGroup]="codeForm" (ngSubmit)="onSubmit()">
+          <div class="code-inputs" *ngIf="showCodeInputs">
+            <input
+              *ngFor="let control of codeControls; let i = index"
+              type="text"
+              [formControlName]="'digit' + i"
+              maxlength="1"
+              class="code-input"
+              (input)="onCodeInput($event, i)"
+              (keydown)="onKeyDown($event, i)"
+              #codeInput
+              #firstInput
+            />
+          </div>
+          <div *ngIf="isBlocked" class="countdown-container">
+            <div class="countdown-circle">
+              <div class="countdown-bar" [style.animationDuration]="countdownDuration + 's'"></div>
+              <span class="countdown-text">{{ countdown }}</span>
+            </div>
+          </div>
+          
+          <!-- Message d'erreur global -->
+          <p *ngIf="errorMessage" class="error global-error">{{ errorMessage }}</p>
+  
+          <p *ngIf="remainingAttempts < 3 && !isBlocked" class="attempts-remaining">
+            Tentatives restantes : {{ remainingAttempts }}
+          </p>
+        </form>
+      </div>
+      <div class="illustration">
+        <!-- L'image du coq sera ajoutée en CSS comme background-image -->
+      </div>
+    </div>
+  </div>
+  

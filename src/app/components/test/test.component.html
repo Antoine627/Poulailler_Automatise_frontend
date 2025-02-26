@@ -1,0 +1,51 @@
+<div class="container">
+    <h2>Liste des Tests</h2>
+    
+    <div *ngFor="let test of tests" class="test-item">
+        <h3>{{ test.name }}</h3>
+        <p>Nombre de poules: {{ test.numberOfChickens }}</p>
+        <p>Feed Requirements: {{ test.feedRequirements | json }}</p>
+        <p>Profitability: {{ test.profitability }}%</p>
+        
+        <button (click)="selectedTestId = test._id">Sélectionner ce test</button>
+    </div>
+  
+    <div *ngIf="selectedTestId" class="actions">
+        <h3>Actions pour le test sélectionné (ID: {{ selectedTestId }})</h3>
+        
+        <div class="input-group">
+            <h4>Calcul des Besoins en Alimentation</h4>
+            <label for="numberOfChickens">Nombre de Poules:</label>
+            <input type="number" id="numberOfChickens" [(ngModel)]="feedData.numberOfChickens">
+            
+            <label for="numberOfWeeks">Nombre de Semaines:</label>
+            <input type="number" id="numberOfWeeks" [(ngModel)]="feedData.numberOfWeeks">
+            
+            <label for="feedPricesStart">Prix du Feed (Début):</label>
+            <input type="number" id="feedPricesStart" [(ngModel)]="feedData.feedPrices.start">
+            
+            <label for="feedPricesGrowth">Prix du Feed (Croissance):</label>
+            <input type="number" id="feedPricesGrowth" [(ngModel)]="feedData.feedPrices.growth">
+            
+            <label for="feedPricesFinish">Prix du Feed (Fin):</label>
+            <input type="number" id="feedPricesFinish" [(ngModel)]="feedData.feedPrices.finish">
+            
+            <button (click)="calculateFeed()">Calculer</button>
+        </div>
+  
+        <div class="input-group">
+            <h4>Calcul de la Rentabilité</h4>
+            <label for="sales">Ventes:</label>
+            <input type="number" id="sales" [(ngModel)]="salesData.sales">
+            
+            <button (click)="calculateProfitability()">Calculer la Rentabilité</button>
+        </div>
+  
+        <div class="input-group">
+            <h4>Enregistrer les Décès</h4>
+            <label for="deaths">Nombre de Décès:</label>
+            <input type="number" id="deaths" [(ngModel)]="deaths">
+            <button (click)="recordDeaths()">Enregistrer</button>
+        </div>
+    </div>
+</div>

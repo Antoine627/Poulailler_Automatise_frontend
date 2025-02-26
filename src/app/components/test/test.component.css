@@ -1,0 +1,65 @@
+/* test.component.css */
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+}
+
+h3, h4 {
+    color: #555;
+}
+
+.test-item {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #fff;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.actions {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #eef;
+    border-radius: 5px;
+    border: 1px solid #bcd;
+}
