@@ -109,7 +109,27 @@ export class ProductionComponent implements OnInit {
   editForm: any = null;
   isAdding = true;
 
+  totalChickCost: number = 0; // Coût total des poussins
+
+
+  public totalFeedCost: number = 0;  // Coût total de l'alimentation
+  public totalOtherCosts: number = 0; // Autres coûts totaux
+
+
+
+  //detailler les calculs
+  public totalExpenses: number = 0;
+public totalRevenue: number = 0;
+public profit: number = 0; // Pour stocker le bénéfice
+
+
   showResults = false;
+
+   // Méthode pour synchroniser les valeurs
+   onChickenCountChange(value: number) {
+    this.feedCalculation.chickenCount = value;
+    this.profitabilityParams.numberOfChickens = value; // Synchroniser la valeur
+  }
 
   public profitabilityStats: any = null;
   public successMessage: string | null = null;
@@ -185,6 +205,7 @@ notificationType: 'success' | 'error' | 'info' = 'info';
     private costService: CostService,
     private productionService: ProductionService,
     private dialog: MatDialog
+    
   ) {}
 
   // 1. Vérifiez que votre service renvoie bien des données
@@ -388,7 +409,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
   }
 
   // Calculer les besoins en alimentation
-  calculateFeedRequirements() {
+ /*  calculateFeedRequirements() {
     const { chickenCount, numberOfWeeks } = this.feedCalculation;
     const currentDateTime = new Date().toISOString();
     const currentUser = 'Antoine627';
@@ -506,8 +527,231 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
         setTimeout(() => this.error = null, 5000);
       }
     });
-  }
+  } */
 
+    // Calculer les besoins en alimentation
+/* calculateFeedRequirements() {
+  this.feedCalculation.chickenCount = value;
+    this.profitabilityParams.numberOfChickens = value; // Synchroniser la valeur
+    this.calculateTotalExpenses(); // Recalculer les dépenses
+  const { chickenCount, numberOfWeeks } = this.feedCalculation;
+  const currentDateTime = new Date().toISOString();
+  const currentUser = 'Antoine627';
+  
+  // Vérification des entrées
+  if (chickenCount <= 0 || numberOfWeeks <= 0) {
+    this.error = 'Veuillez entrer des valeurs valides pour le nombre de volailles et le nombre de semaines';
+    setTimeout(() => this.error = null, 5000);
+    return;
+  }
+  
+  console.log('Calcul avec:', { chickenCount, numberOfWeeks });
+  
+  // Taux de mortalité approximatif par semaine (peut être ajusté)
+  const weeklyMortalityRate = 0.005; // 0.5% par semaine
+  
+  // Calcul pour chaque phase d'alimentation avec prise en compte du taux de mortalité
+  const demarrage = this.calculatePhaseRequirementsWithMortality('demarrage', chickenCount, numberOfWeeks, weeklyMortalityRate);
+  const croissance = this.calculatePhaseRequirementsWithMortality('croissance', chickenCount, numberOfWeeks, weeklyMortalityRate);
+  const finition = this.calculatePhaseRequirementsWithMortality('finition', chickenCount, numberOfWeeks, weeklyMortalityRate);
+  
+  console.log('Résultats:', { demarrage, croissance, finition });
+  
+  // Mettre à jour le résultat
+  this.feedCalculation.result = {
+    demarrage,
+    croissance,
+    finition
+  };
+  
+  // Calculer les totaux pour l'affichage dans les cards
+  this.feedCalculation.totalFeedConsumptionKg =
+    demarrage.totalFeedConsumptionKg + croissance.totalFeedConsumptionKg + finition.totalFeedConsumptionKg;
+  
+  this.feedCalculation.totalBagsNeeded =
+    demarrage.bagsNeeded + croissance.bagsNeeded + finition.bagsNeeded;
+  
+  this.feedCalculation.totalCostFCFA =
+    demarrage.totalCostFCFA + croissance.totalCostFCFA + finition.totalCostFCFA;
+
+  // Mettre à jour le coût d'alimentation dans profitabilityParams
+  this.profitabilityParams.feedCost = this.feedCalculation.totalCostFCFA;
+
+  // Estimer le nombre final de volailles après mortalité
+  const estimatedSurvivingChickens = chickenCount * Math.pow(1 - weeklyMortalityRate, numberOfWeeks);
+  this.feedCalculation.estimatedMortality = chickenCount - Math.floor(estimatedSurvivingChickens);
+  this.feedCalculation.survivingChickens = Math.floor(estimatedSurvivingChickens);
+  
+  // Afficher les résultats
+  this.showResults = true;
+  
+  // Masquer les résultats après 30 secondes
+  setTimeout(() => {
+    this.showResults = false;
+  }, 30000);
+  
+  // Créer l'objet Production pour la base de données
+  const production: Production = {
+    chickenCount: chickenCount,
+    mortality: this.feedCalculation.estimatedMortality || 0
+  };
+  
+  // Créer une Map pour dynamicData
+  const dynamicData = new Map<string, string>([
+    ['chickenCount', chickenCount.toString()],
+    ['numberOfWeeks', numberOfWeeks.toString()],
+    ['totalFeedConsumptionKg', this.feedCalculation.totalFeedConsumptionKg.toString()],
+    ['totalBagsNeeded', this.feedCalculation.totalBagsNeeded.toString()],
+    ['estimatedMortality', this.feedCalculation.estimatedMortality?.toString() || '0'],
+    ['survivingChickens', this.feedCalculation.survivingChickens?.toString() || chickenCount.toString()],
+    ['calculatedBy', currentUser],
+    ['calculatedAt', currentDateTime]
+  ]);
+  
+  // Sauvegarder la production
+  this.productionService.addProduction(production).subscribe({
+    next: (savedProduction) => {
+      console.log('Production sauvegardée:', savedProduction);
+      
+      // Créer et sauvegarder le coût associé
+      const cost = {
+        type: 'feed_calculation',
+        description: `Calcul d'alimentation pour ${chickenCount} volailles sur ${numberOfWeeks} semaines`,
+        amount: this.feedCalculation.totalCostFCFA,
+        date: new Date(currentDateTime),
+        dynamicData: dynamicData
+      };
+      
+      // Sauvegarder le coût
+      this.costService.addCost(cost).subscribe({
+        next: (savedCost) => {
+          console.log('Coût sauvegardé:', savedCost);
+          this.loadDashboardData();
+          this.showNotification('Calcul d\'alimentation effectué avec succès', 'success');
+        },
+        error: (error) => {
+          console.error('Erreur lors de la sauvegarde du coût:', error);
+          this.showNotification('Erreur lors de la sauvegarde du calcul d\'alimentation', 'error');
+        }
+      });
+    },
+    error: (error) => {
+      console.error('Erreur lors de la sauvegarde de la production:', error);
+      this.error = 'Erreur lors de la sauvegarde de la production';
+      setTimeout(() => this.error = null, 5000);
+    }
+  });
+} */
+  
+  calculateFeedRequirements() {
+    const { chickenCount, numberOfWeeks } = this.feedCalculation; // Accédez directement aux valeurs
+    const currentDateTime = new Date().toISOString();
+    const currentUser = 'Antoine627';
+    
+    // Vérification des entrées
+    if (chickenCount <= 0 || numberOfWeeks <= 0) {
+      this.error = 'Veuillez entrer des valeurs valides pour le nombre de volailles et le nombre de semaines';
+      setTimeout(() => this.error = null, 5000);
+      return;
+    }
+    
+    console.log('Calcul avec:', { chickenCount, numberOfWeeks });
+    
+    // Taux de mortalité approximatif par semaine (peut être ajusté)
+    const weeklyMortalityRate = 0.005; // 0.5% par semaine
+    
+    // Calcul pour chaque phase d'alimentation avec prise en compte du taux de mortalité
+    const demarrage = this.calculatePhaseRequirementsWithMortality('demarrage', chickenCount, numberOfWeeks, weeklyMortalityRate);
+    const croissance = this.calculatePhaseRequirementsWithMortality('croissance', chickenCount, numberOfWeeks, weeklyMortalityRate);
+    const finition = this.calculatePhaseRequirementsWithMortality('finition', chickenCount, numberOfWeeks, weeklyMortalityRate);
+    
+    console.log('Résultats:', { demarrage, croissance, finition });
+    
+    // Mettre à jour le résultat
+    this.feedCalculation.result = {
+      demarrage,
+      croissance,
+      finition
+    };
+    
+    // Calculer les totaux pour l'affichage dans les cards
+    this.feedCalculation.totalFeedConsumptionKg =
+      demarrage.totalFeedConsumptionKg + croissance.totalFeedConsumptionKg + finition.totalFeedConsumptionKg;
+    
+    this.feedCalculation.totalBagsNeeded =
+      demarrage.bagsNeeded + croissance.bagsNeeded + finition.bagsNeeded;
+    
+    this.feedCalculation.totalCostFCFA =
+      demarrage.totalCostFCFA + croissance.totalCostFCFA + finition.totalCostFCFA;
+  
+    // Mettre à jour le coût d'alimentation dans profitabilityParams
+    this.profitabilityParams.feedCost = this.feedCalculation.totalCostFCFA;
+  
+    // Estimer le nombre final de volailles après mortalité
+    const estimatedSurvivingChickens = chickenCount * Math.pow(1 - weeklyMortalityRate, numberOfWeeks);
+    this.feedCalculation.estimatedMortality = chickenCount - Math.floor(estimatedSurvivingChickens);
+    this.feedCalculation.survivingChickens = Math.floor(estimatedSurvivingChickens);
+    
+    // Afficher les résultats
+    this.showResults = true;
+    
+    // Masquer les résultats après 30 secondes
+    setTimeout(() => {
+      this.showResults = false;
+    }, 30000);
+    
+    // Créer l'objet Production pour la base de données
+    const production: Production = {
+      chickenCount: chickenCount,
+      mortality: this.feedCalculation.estimatedMortality || 0
+    };
+    
+    // Créer une Map pour dynamicData
+    const dynamicData = new Map<string, string>([
+      ['chickenCount', chickenCount.toString()],
+      ['numberOfWeeks', numberOfWeeks.toString()],
+      ['totalFeedConsumptionKg', this.feedCalculation.totalFeedConsumptionKg.toString()],
+      ['totalBagsNeeded', this.feedCalculation.totalBagsNeeded.toString()],
+      ['estimatedMortality', this.feedCalculation.estimatedMortality?.toString() || '0'],
+      ['survivingChickens', this.feedCalculation.survivingChickens?.toString() || chickenCount.toString()],
+      ['calculatedBy', currentUser],
+      ['calculatedAt', currentDateTime]
+    ]);
+    
+    // Sauvegarder la production
+    this.productionService.addProduction(production).subscribe({
+      next: (savedProduction) => {
+        console.log('Production sauvegardée:', savedProduction);
+        
+        // Créer et sauvegarder le coût associé
+        const cost = {
+          type: 'feed_calculation',
+          description: `Calcul d'alimentation pour ${chickenCount} volailles sur ${numberOfWeeks} semaines`,
+          amount: this.feedCalculation.totalCostFCFA,
+          date: new Date(currentDateTime),
+          dynamicData: dynamicData
+        };
+        
+        // Sauvegarder le coût
+        this.costService.addCost(cost).subscribe({
+          next: (savedCost) => {
+            console.log('Coût sauvegardé:', savedCost);
+            this.loadDashboardData();
+            this.showNotification('Calcul d\'alimentation effectué avec succès', 'success');
+          },
+          error: (error) => {
+            console.error('Erreur lors de la sauvegarde du coût:', error);
+            this.showNotification('Erreur lors de la sauvegarde du calcul d\'alimentation', 'error');
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Erreur lors de la sauvegarde de la production:', error);
+        this.error = 'Erreur lors de la sauvegarde de la production';
+        setTimeout(() => this.error = null, 5000);
+      }
+    });
+  }
   addProduction() {
     const { chickenCount, mortality } = this.productionManagement;
     const production: Production = {
@@ -721,6 +965,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
 
   // Calculer la rentabilité
   calculateProfitability() {
+    this.calculateTotalExpenses();
     // Calculer le revenu total en fonction des ventes
     const totalRevenue = this.profitabilityParams.sales.reduce(
       (sum, sale) => sum + sale.quantity * sale.unitPrice,
@@ -818,4 +1063,58 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
       totalProduction: this.productionManagement.updatedProduction,
     };
   }
+
+
+  preventNegative(event: KeyboardEvent) {
+    const inputValue = (event.target as HTMLInputElement).value;
+    const forbiddenKeys = ['-', '+', 'e', 'E', '.', ' ']; // Ajoutez d'autres caractères spéciaux ici
+  
+    // Vérifiez si la touche pressée est dans la liste des caractères interdits
+    if (forbiddenKeys.includes(event.key) || (event.key === '0' && inputValue.length === 0)) {
+      event.preventDefault(); // Empêche la saisie
+    }
+  }
+  
+  preventSpecialCharacters(event: KeyboardEvent) {
+    const forbiddenKeys = ['-', '+', 'e', 'E', '.', ' ']; // Caractères interdits
+    if (forbiddenKeys.includes(event.key)) {
+      event.preventDefault(); // Empêche la saisie du caractère
+    }
+  }
+
+
+  calculateTotalExpenses() {
+    const feedCost = this.profitabilityParams.feedCost || 0; // Coût d'alimentation
+    const otherCosts = this.profitabilityParams.otherCosts || 0; // Autres coûts
+    const chickPrice = this.profitabilityParams.chickPrice || 0; // Prix unitaire des poussins
+    const numberOfChickens = this.profitabilityParams.numberOfChickens || 0; // Nombre de poussins
+  
+    // Calculer le coût total des poussins
+    const chickCost = chickPrice * numberOfChickens; // Coût total des poussins
+  
+    // Total des dépenses
+    this.totalExpenses = feedCost + otherCosts + chickCost;
+  
+    // Mettre à jour les coûts spécifiques
+    this.totalFeedCost = feedCost;
+    this.totalOtherCosts = otherCosts;
+    this.totalChickCost = chickCost; // Ajoutez ceci pour stocker le coût total des poussins
+  }
+  calculateTotalCosts() {
+    const chickPrice = this.profitabilityParams.chickPrice || 0;
+    const numberOfChickens = this.profitabilityParams.numberOfChickens || 0;
+    const otherCosts = this.profitabilityParams.otherCosts || 0;
+  
+    // Calculer le coût total des poussins
+    this.totalChickCost = chickPrice * numberOfChickens;
+  
+    // Mettre à jour le coût total d'alimentation et d'autres coûts
+    this.totalFeedCost = this.profitabilityParams.feedCost || 0;
+    this.totalOtherCosts = otherCosts;
+  
+    // Mettre à jour le total général si nécessaire
+    this.totalExpenses = this.totalFeedCost + this.totalChickCost + this.totalOtherCosts;
+  }
+
+  
 }
