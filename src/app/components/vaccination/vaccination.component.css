@@ -110,13 +110,18 @@ form {
 .form-row {
   display: flex;
   gap: 24px;
-  margin-bottom: 8px;
+  margin-bottom: 20px;
 }
 
 .form-field {
   flex: 1;
   min-width: 200px;
   position: relative;
+  margin-right: 15px;
+}
+
+.form-field:last-child {
+  margin-right: 0;
 }
 
 .form-field label {

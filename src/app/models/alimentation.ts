@@ -39,13 +39,33 @@ export interface BaseModel {
     _id: string; // feedType
     currentStock: number;
   }
+
+
+  export interface FeedingType {
+    _id: string;
+    name: string;
+    unit: string;
+    maxQuantity?: number;
+  }
+
+
+  export interface FeedingProgram {
+    _id?: string;
+    quantity: number;
+    feedType: string;
+    programStartTime: string;
+    programEndTime: string;
+    stockId?: string;
+    stockQuantity?: number;
+    notes?: string;
+    automaticFeeding?: boolean;
+  }
   
-  export type FeedingType = 'grain' | 'hay' | 'supplement' | 'Aliments démarrage' | 'Aliments croissance' | 'Aliments finition' | 'supplement' | 'other';
   
   export interface FeedingFilters {
     startDate?: Date;
     endDate?: Date;
-    feedType?: FeedingType;
+    feedType?: string;
     limit?: number;
   }
   

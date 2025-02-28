@@ -11,37 +11,37 @@
 
   <nav class="menu">
     <ul>
-      <li class="menu-item" (click)="navigateToDashboard()">
+      <li class="menu-item" [class.active]="isActive('/dashboard')" (click)="navigateToDashboard()">
         <div class="menu-content">
           <fa-icon [icon]="faTachometerAlt"></fa-icon>
           Tableau de bord
         </div>
       </li>
-      <li class="menu-item" (click)="navigateToUserManagement()">
+      <li class="menu-item" [class.active]="isActive('/alimentation')" (click)="navigateToUserManagement()">
         <div class="menu-content">
           <fa-icon [icon]="faBowlFood"></fa-icon>
           Gestion Alimentations
         </div>
       </li>      
-      <li class="menu-item" (click)="navigateToVaccinationManagement()">
+      <li class="menu-item" [class.active]="isActive('/vaccinations')" (click)="navigateToVaccinationManagement()">
         <div class="menu-content">
           <fa-icon [icon]="faSyringe"></fa-icon>
           Gestion vaccination
         </div>
       </li>
-      <li class="menu-item" (click)="navigateToPoultryManagement()">
+      <li class="menu-item" [class.active]="isActive('/productions')" (click)="navigateToPoultryManagement()">
         <div class="menu-content">
           <fa-icon [icon]="faKiwiBird"></fa-icon>
           Gestion de volailles
         </div>
       </li>
-      <li class="menu-item" (click)="navigateToHistoriques()">
+      <li class="menu-item" [class.active]="isActive('/historiques')" (click)="navigateToHistoriques()">
         <div class="menu-content">
           <fa-icon [icon]="faHistory"></fa-icon>
           Historiques
         </div>
       </li>
-      <li class="menu-item" (click)="navigateToSettings()">
+      <li class="menu-item" [class.active]="isActive('/parametres')" (click)="navigateToSettings()">
         <div class="menu-content">
           <fa-icon [icon]="faHistory"></fa-icon>
           Paramètres

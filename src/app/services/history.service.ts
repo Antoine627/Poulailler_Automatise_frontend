@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http'; // Importez HttpHeaders
+import { HttpClient, HttpParams, HttpHeaders, HttpResponse } from '@angular/common/http'; // Importez HttpHeaders
 import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { AuthService } from './auth.service'; // Importez AuthService pour récupérer le token
 
 @Injectable({
@@ -145,6 +145,44 @@ export class HistoryService {
     );
   }
 
+
+ /**
+   * Exporte l'historique au format CSV.
+   * @param type - Le type d'historique à exporter (optionnel).
+   * @param startDate - La date de début (optionnelle).
+   * @param endDate - La date de fin (optionnelle).
+   * @returns Observable<Blob> - Le fichier CSV en tant que Blob.
+   */
+ exportHistoryToCsv(type?: string, startDate?: string, endDate?: string): Observable<Blob> {
+  let params = new HttpParams();
+  if (type) params = params.set('type', type);
+  if (startDate) params = params.set('startDate', startDate);
+  if (endDate) params = params.set('endDate', endDate);
+
+  return this.http.get(`${this.apiUrl}/export/csv`, {
+    params: params,
+    responseType: 'blob', // Indique que la réponse est un fichier binaire
+  });
+}
+
+/**
+ * Exporte l'historique au format Excel.
+ * @param type - Le type d'historique à exporter (optionnel).
+ * @param startDate - La date de début (optionnelle).
+ * @param endDate - La date de fin (optionnelle).
+ * @returns Observable<Blob> - Le fichier Excel en tant que Blob.
+ */
+exportHistoryToExcel(type?: string, startDate?: string, endDate?: string): Observable<Blob> {
+  let params = new HttpParams();
+  if (type) params = params.set('type', type);
+  if (startDate) params = params.set('startDate', startDate);
+  if (endDate) params = params.set('endDate', endDate);
+
+  return this.http.get(`${this.apiUrl}/export/excel`, {
+    params: params,
+    responseType: 'blob', // Indique que la réponse est un fichier binaire
+  });
+}
   // --------------------------
   // Gestion des erreurs
   // --------------------------

@@ -26,11 +26,14 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   eau: Feeding[] = [];
   stocks: Stock[] = [];
   notifications: Notification[] = [];
+
+  filteredStocks: Stock[] = [];
+
   
   newStartTime: string = '';
   newEndTime: string = '';
   newQuantity: number = 0;
-  newFeedType: string = '';
+  // newFeedType: string = '';
   newNotes: string = '';
   newAutomaticFeeding: boolean = true;
   newProgramStartTime: string = '';
@@ -53,6 +56,18 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   isStockInsufficient: boolean = false;
   lowStockAlerts: Stock[] = [];
 
+  @ViewChild('addModalNourriture') addModalNourriture!: TemplateRef<any>;
+  @ViewChild('addModalEau') addModalEau!: TemplateRef<any>;
+
+  filteredNourritureStocks: Stock[] = [];
+  filteredEauStocks: Stock[] = [];
+
+  currentTimeString: string = '';
+  timeErrors: { startTime: string | null, endTime: string | null } = { 
+    startTime: null, 
+    endTime: null 
+  };
+
   constructor(
     private modalService: NgbModal,
     private router: Router,
@@ -66,10 +81,49 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
     this.loadStocks();
     this.checkLowStocks();
     this.loadUnreadNotifications();
+    this.updateCurrentTime();
+    setInterval(() => this.updateCurrentTime(), 60000);
     
     // Démarrer les vérifications périodiques
     this.startProgramCheck();
     this.startNotificationCheck();
+  }
+
+  updateCurrentTime() {
+    const now = new Date();
+    this.currentTimeString = this.formatTimeString(now);
+  }
+
+
+  validateTimeInputs() {
+    this.timeErrors = { startTime: null, endTime: null };
+    
+    // Obtenir l'heure actuelle
+    const now = new Date();
+    const currentTimeStr = this.formatTimeString(now);
+    
+    // Valider l'heure de début
+    if (this.newProgramStartTime) {
+      // Vérifier si l'heure de début est déjà passée aujourd'hui
+      if (this.newProgramStartTime < currentTimeStr) {
+        this.timeErrors.startTime = "L'heure de début ne peut pas être antérieure à l'heure actuelle";
+      }
+    }
+    
+    // Valider l'heure de fin
+    if (this.newProgramStartTime && this.newProgramEndTime) {
+      // Vérifier que l'heure de fin est postérieure à l'heure de début
+      if (this.newProgramEndTime <= this.newProgramStartTime) {
+        this.timeErrors.endTime = "L'heure de fin doit être postérieure à l'heure de début";
+      }
+      
+      // Vérifier que l'heure de fin n'est pas déjà passée
+      if (this.newProgramEndTime < currentTimeStr) {
+        this.timeErrors.endTime = "L'heure de fin ne peut pas être antérieure à l'heure actuelle";
+      }
+    }
+    
+    return !this.timeErrors.startTime && !this.timeErrors.endTime;
   }
 
   ngOnDestroy() {
@@ -101,6 +155,16 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
       this.loadUnreadNotifications();
       this.checkLowStocks();
     });
+  }
+
+
+  onQuantityChange() {
+    const selectedStock = this.stocks.find(stock => stock._id === this.newStockId);
+    if (selectedStock) {
+      this.isStockInsufficient = this.newQuantity > selectedStock.quantity;
+      this.currentStockQuantity = selectedStock.quantity;
+      this.currentStockUnit = selectedStock.unit;
+    }
   }
 
   // Charger les notifications non lues
@@ -313,6 +377,9 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
     this.stockService.getAllStocks().subscribe({
       next: (stocks: Stock[]) => {
         this.stocks = stocks;
+        // Filtrer les stocks pour la nourriture et l'eau
+        this.filteredNourritureStocks = stocks.filter(stock => stock.type !== 'eau');
+        this.filteredEauStocks = stocks.filter(stock => stock.type === 'eau');
       },
       error: (error) => {
         console.error('Erreur lors du chargement des stocks:', error);
@@ -362,22 +429,26 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   openAddModal(section: string, content: TemplateRef<any>, index: number | null = null) {
     this.currentSection = section;
     this.editIndex = index;
-
+    this.timeErrors = { startTime: null, endTime: null };
+    this.updateCurrentTime();
+  
     if (index !== null) {
       const programs = section === 'nourritures' ? this.nourritures : this.eau;
       const program = programs[index];
       this.newProgramStartTime = program.programStartTime || '';
       this.newProgramEndTime = program.programEndTime || '';
       this.newQuantity = program.quantity;
-      this.newFeedType = program.feedType;
       this.newNotes = program.notes || '';
       this.newAutomaticFeeding = program.automaticFeeding || true;
       this.newStockId = program.stockId || '';
     } else {
       this.resetForm();
     }
-
-    this.modalService.open(content, { ariaLabelledBy: 'modal-basic-title' }).result.then(
+  
+    // Utiliser le modal approprié en fonction de la section
+    const modalTemplate = section === 'nourritures' ? this.addModalNourriture : this.addModalEau;
+    
+    this.modalService.open(modalTemplate, { ariaLabelledBy: 'modal-basic-title' }).result.then(
       () => {
         this.resetForm();
       },
@@ -389,6 +460,16 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
 
   // Sauvegarder un programme d'alimentation
   saveProgram() {
+    if (!this.validateTimeInputs()) {
+      this.showCustomNotification("Veuillez corriger les erreurs dans les champs d'heure", 'error');
+      return;
+    }
+  
+    if (this.newAutomaticFeeding && !this.validateTimeInputs()) {
+      this.showCustomNotification("Veuillez corriger les erreurs dans les champs d'heure", 'error');
+      return;
+    }
+  
     const selectedStock = this.stocks.find(stock => stock._id === this.newStockId);
   
     if (!selectedStock) {
@@ -396,13 +477,11 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
       return;
     }
   
-    // Vérifier que l'ID du stock est défini
     if (!selectedStock._id) {
       this.showCustomNotification('ID du stock non défini', 'error');
       return;
     }
   
-    // Vérifier si la quantité demandée est disponible dans le stock
     if (this.newQuantity > selectedStock.quantity) {
       this.showCustomNotification(`Quantité insuffisante en stock. Disponible: ${selectedStock.quantity} ${selectedStock.unit}`, 'error');
       return;
@@ -410,7 +489,7 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   
     const newProgram: Feeding = {
       quantity: this.newQuantity,
-      feedType: this.newFeedType,
+      feedType: selectedStock.type, // Utiliser le type du stock directement
       notes: this.newNotes,
       automaticFeeding: this.newAutomaticFeeding,
       programStartTime: this.newProgramStartTime,
@@ -454,6 +533,13 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
     this.resetForm();
   }
 
+
+  getStockType(stockId: string): string {
+    const stock = this.stocks.find(s => s._id === stockId);
+    return stock ? stock.type : '';
+  }
+  
+
   // Décrémenter un stock
   decrementStock(stockId: string, quantityUsed: number) {
     const stock = this.stocks.find(stock => stock._id === stockId);
@@ -477,6 +563,25 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
         console.error('Erreur lors de la mise à jour du stock:', error);
       }
     });
+  }
+
+
+  onAutomaticFeedingChange() {
+    if (!this.newAutomaticFeeding) {
+      // Si l'alimentation automatique est désactivée, réinitialiser les heures
+      this.newProgramStartTime = '';
+      this.newProgramEndTime = '';
+      this.timeErrors = { startTime: null, endTime: null };
+    } else {
+      // Si l'alimentation automatique est activée, définir les heures par défaut
+      const defaultStartTime = new Date();
+      defaultStartTime.setMinutes(defaultStartTime.getMinutes() + 5);
+      this.newProgramStartTime = this.formatTimeString(defaultStartTime);
+      
+      const defaultEndTime = new Date();
+      defaultEndTime.setMinutes(defaultEndTime.getMinutes() + 35);
+      this.newProgramEndTime = this.formatTimeString(defaultEndTime);
+    }
   }
 
   // Incrémenter un stock (après suppression d'un programme)
@@ -545,11 +650,32 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   }
 
   // Réinitialiser le formulaire
+  // private resetForm() {
+  //   this.newProgramStartTime = '';
+  //   this.newProgramEndTime = '';
+  //   this.newQuantity = 0;
+  //   this.newFeedType = '';
+  //   this.newNotes = '';
+  //   this.newAutomaticFeeding = true;
+  //   this.newStockId = '';
+  //   this.currentStockQuantity = null;
+  //   this.currentStockUnit = '';
+  //   this.editIndex = null;
+  // }
+
+
   private resetForm() {
-    this.newProgramStartTime = '';
-    this.newProgramEndTime = '';
+    const defaultStartTime = new Date();
+    defaultStartTime.setMinutes(defaultStartTime.getMinutes() + 5);
+    this.newProgramStartTime = this.formatTimeString(defaultStartTime);
+    
+    const defaultEndTime = new Date();
+    defaultEndTime.setMinutes(defaultEndTime.getMinutes() + 35);
+    this.newProgramEndTime = this.formatTimeString(defaultEndTime);
+    
     this.newQuantity = 0;
-    this.newFeedType = '';
+    // Supprimer cette ligne
+    // this.newFeedType = '';
     this.newNotes = '';
     this.newAutomaticFeeding = true;
     this.newStockId = '';
@@ -559,13 +685,25 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   }
 
   // Gérer le changement de type d'alimentation
-  onFeedTypeChange(event: any) {
-    this.newFeedType = event.target.value;
-  }
+  // onFeedTypeChange(event: any) {
+  //   this.newFeedType = event.target.value;
+  // }
 
   // Gérer le changement de stock sélectionné
   onStockChange() {
-    this.checkStockSufficiency();
+    // Utiliser le bon ensemble de stocks en fonction de la section courante
+    const stocksList = this.currentSection === 'nourritures' ? this.filteredNourritureStocks : this.filteredEauStocks;
+    const selectedStock = stocksList.find(stock => stock._id === this.newStockId);
+    
+    if (selectedStock) {
+      this.currentStockQuantity = selectedStock.quantity;
+      this.currentStockUnit = selectedStock.unit;
+      this.isStockInsufficient = this.newQuantity > selectedStock.quantity;
+    } else {
+      this.currentStockQuantity = null;
+      this.currentStockUnit = '';
+      this.isStockInsufficient = false;
+    }
   }
 
   // Procédure de gestion bulk pour ajouter plusieurs programmes

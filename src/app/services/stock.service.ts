@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { Stock, StockStats, LowStockAlert } from './../models/stock.model';
 import { AuthService } from './auth.service'; // Importez AuthService
 
@@ -54,6 +54,16 @@ export class StockService {
   getAllStocks(): Observable<Stock[]> {
     const headers = this.getHeaders();
     return this.http.get<Stock[]>(`${this.apiUrl}/all`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+
+  // Dans stock.service.ts
+
+  getStockById(stockId: string): Observable<Stock> {
+    const headers = this.getHeaders();
+    return this.http.get<Stock>(`${this.apiUrl}/stocks/${stockId}`, { headers }).pipe(
       catchError(this.handleError)
     );
   }
@@ -121,6 +131,27 @@ export class StockService {
         })
       );
   }
+
+
+
+  // Add this method to StockService
+syncTankLevelWithStock(type: string): Observable<number> {
+  const headers = this.getHeaders();
+  return this.getStocksByType(type).pipe(
+    map(stocks => {
+      if (stocks && stocks.length > 0) {
+        const stock = stocks[0];
+        // Calculate percentage based on max capacity (assuming max capacity is stored in the stock)
+        return (stock.quantity / stock.maxQuantity) * 100;
+      }
+      return 0; // Return 0 if no stock found
+    }),
+    catchError(error => {
+      console.error(`Error syncing tank level for ${type}:`, error);
+      return of(0);
+    })
+  );
+}
 
 
   

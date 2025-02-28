@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpErrorResponse } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
+import { forkJoin, Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { Stock } from '../models/stock.model';
 
@@ -169,13 +169,33 @@ export class AlimentationService {
   }
 
 
-  // Ajouter cette méthode au service AlimentationService
+  // Add this new method to AlimentationService
+  getFeedingProgramWithStock(): Observable<Feeding[]> {
+    const headers = this.getHeaders();
+    return this.http.get<Feeding[]>(`${this.apiUrl}/with-stock`, { headers }).pipe(
+      map(feedings => feedings.filter(feeding => feeding.stockQuantity !== undefined)),
+      catchError(this.handleError)
+    );
+  }
+
+    // Modify the decrementFeedingQuantity method to also update stock
     decrementFeedingQuantity(id: string, amount: number = 1): Observable<Feeding> {
       const headers = this.getHeaders();
       return this.http.patch<Feeding>(`${this.apiUrl}/${id}/decrement`, { amount }, { headers }).pipe(
+        switchMap(feeding => {
+          if (feeding.stockId) {
+            // Update stock quantity
+            return this.updateStockQuantity(feeding.stockId, amount).pipe(
+              map(() => feeding)
+            );
+          }
+          return of(feeding);
+        }),
         catchError(this.handleError)
       );
     }
+
+  
 
     getConsumptionStats(): Observable<ConsumptionStats[]> {
       const headers = this.getHeaders();

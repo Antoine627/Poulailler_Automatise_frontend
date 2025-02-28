@@ -387,14 +387,14 @@ h1 {
   .code-input:focus,
   .form-control:focus {
     outline: none;
-    border-color: #2563eb;
+    border-color: #F6EB61;
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
   }
 
   .form-control:focus,
 .code-input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #F6EB61;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
   transition: all 0.2s ease-in-out;
 }
@@ -410,4 +410,6 @@ h1 {
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
 }
+
+
   

@@ -3,14 +3,25 @@ export interface Production {
     _id?: string; // Optionnel car généré par MongoDB
     chickenCount: number;
     mortality: number;
-    feedConsumption: number;
-    costs: {
-      feed: number;
-      vaccines: number;
-      utilities: number;
-      other: number;
-    };
-    revenue: number;
     createdAt?: Date; // Optionnel car généré par MongoDB
     updatedAt?: Date; // Optionnel car généré par MongoDB
+}
+
+
+
+  export interface ProductionStats {
+    totalProduction: number;
+    totalMortality: number;
+  }
+  
+  export interface CostStats {
+    total: number;
+    profitability: number;
+  }
+  
+  export interface ProductionDisplay {
+    date: Date;
+    quantity: number;
+    status: string;
+    _id: string;
   }

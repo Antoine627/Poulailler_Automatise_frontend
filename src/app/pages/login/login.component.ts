@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -50,6 +51,9 @@ export class LoginComponent implements AfterViewInit {
   errorMessage: string = '';
   attempts: number = 0;
   remainingAttempts: number = 3;
+  notificationType: 'success' | 'error' | 'info' = 'info';
+  notificationMessage: string = '';
+  showNotificationBar: boolean = false;
 
 
   constructor(
@@ -63,6 +67,30 @@ export class LoginComponent implements AfterViewInit {
     this.initializeForms();
     this.loadSavedMode();
     this.checkBlockStatus();
+  }
+
+
+  // Dans ton composant login
+  ngOnInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      // Vérifie si l'utilisateur vient d'un changement de mot de passe réussi
+      if (localStorage.getItem('passwordChangeSuccess')) {
+        this.showNotification('Votre mot de passe a été modifié avec succès. Veuillez vous connecter avec votre nouveau mot de passe.', 'success');
+        localStorage.removeItem('passwordChangeSuccess');
+      }
+    }
+  }
+
+
+  showNotification(message: string, type: 'success' | 'error' | 'info'): void {
+    // Implémentation similaire à celle de ton SettingsComponent
+    this.notificationMessage = message;
+    this.notificationType = type;
+    this.showNotificationBar = true;
+  
+    setTimeout(() => {
+      this.showNotificationBar = false;
+    }, 5000);
   }
 
 
@@ -180,7 +208,17 @@ export class LoginComponent implements AfterViewInit {
   }
 
   onForgotPassword(): void {
-    this.router.navigate(['/forget-password']);
+    // Récupérer la valeur de l'email, même si vide
+    const emailValue = this.loginForm.get('email')?.value || '';
+    
+    // Prévenir la validation du formulaire
+    event?.preventDefault();
+    event?.stopPropagation();
+    
+    // Redirection immédiate avec l'email en paramètre, sans validation
+    this.router.navigate(['/forget-password'], {
+      queryParams: { email: emailValue }
+    });
   }
 
   // Form Submission Methods
@@ -371,17 +409,17 @@ export class LoginComponent implements AfterViewInit {
   private focusOnFirstInput(): void {
     if (!isPlatformBrowser(this.platformId) || this.isBlocked) return;
   
-    if (this.isCodeMode) {
-      if (this.firstInput?.nativeElement) {
-        this.firstInput.nativeElement.focus();
-        this.firstInput.nativeElement.select();
-      }
-    } else {
-      if (this.emailInput?.nativeElement) {
-        this.emailInput.nativeElement.focus();
-        this.emailInput.nativeElement.select();
-      }
+    if (this.isCodeMode && this.firstInput?.nativeElement) {
+      this.firstInput.nativeElement.focus();
+      this.firstInput.nativeElement.select();
     }
+    // Supprimer ou commenter la partie qui met le focus sur l'email
+    // else {
+    //   if (this.emailInput?.nativeElement) {
+    //     this.emailInput.nativeElement.focus();
+    //     this.emailInput.nativeElement.select();
+    //   }
+    // }
   }
 
 

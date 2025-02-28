@@ -1,10 +1,11 @@
 // src/app/services/cost.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
-import { Cost } from '../models/cost.model'; // Importez l'interface
+import { Cost, FeedCalculationResult, ProfitabilityCalculation } from '../models/cost.model'; // Importez l'interface
+
 
 @Injectable({
   providedIn: 'root',
@@ -16,9 +17,21 @@ export class CostService {
 
   // Ajouter un coût
   addCost(cost: Cost): Observable<Cost> {
-    return this.http.post<Cost>(this.apiUrl, cost, { headers: this.getHeader() }).pipe(
-      catchError(this.handleError<Cost>('addCost'))
-    );
+    // Si cost.dynamicData est une Map, la convertir en objet simple
+    const costToSend = {
+      ...cost,
+      dynamicData: cost.dynamicData instanceof Map ? 
+        Object.fromEntries(cost.dynamicData) : 
+        cost.dynamicData
+    };
+  
+    return this.http.post<Cost>(this.apiUrl, costToSend, { headers: this.getHeader() })
+      .pipe(
+        catchError(error => {
+          console.error('Erreur détaillée:', error);
+          return throwError(() => new Error('Erreur lors de l\'ajout du coût'));
+        })
+      );
   }
 
   // Récupérer l'historique des coûts
@@ -57,24 +70,39 @@ export class CostService {
   }
 
   // Calculer les besoins en alimentation
-  calculateFeedRequirements(data: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/feed-requirements`, data, { headers: this.getHeader() }).pipe(
-      catchError(this.handleError<any>('calculateFeedRequirements'))
+  calculateFeedRequirements(data: any): Observable<FeedCalculationResult> {
+    return this.http.post<FeedCalculationResult>(
+      `${this.apiUrl}/feed-requirements`, 
+      data, 
+      { headers: this.getHeader() }
+    ).pipe(
+      catchError(this.handleError<FeedCalculationResult>('calculateFeedRequirements'))
     );
   }
 
   // Calculer la rentabilité
-  calculateProfitability(data: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/profitability`, data, { headers: this.getHeader() }).pipe(
-      catchError(this.handleError<any>('calculateProfitability'))
+  calculateProfitability(data: ProfitabilityCalculation): Observable<ProfitabilityCalculation> {
+    return this.http.post<ProfitabilityCalculation>(
+      `${this.apiUrl}/profitability`, 
+      data, 
+      { headers: this.getHeader() }
+    ).pipe(
+      catchError(this.handleError<ProfitabilityCalculation>('calculateProfitability'))
     );
   }
 
   // Gestion des erreurs
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {
-      console.error(`${operation} failed: ${error.message}`);
-      return of(result as T);
+      console.error(`${operation} failed:`, error);
+      // Log détaillé de l'erreur
+      if (error.error instanceof ErrorEvent) {
+        console.error('Client side error:', error.error.message);
+      } else {
+        console.error(`Backend returned code ${error.status}, body was:`, error.error);
+      }
+      // Vous pouvez retourner une erreur personnalisée ici
+      throw error;
     };
   }
 

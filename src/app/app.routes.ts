@@ -10,6 +10,7 @@ import { VaccinationComponent } from './components/vaccination/vaccination.compo
 import { ProductionComponent } from './components/production/production.component';
 import { HistoriquesComponent } from './components/historiques/historiques.component';
 import { SettingsComponent } from './components/settings/settings.component';
+import { PasswordConfirmComponent } from './components/password-confirm/password-confirm.component';
 
 import { LoginComponent } from './pages/login/login.component';
 import { AuthGuard } from './auth.guard'; // Importez le guard
@@ -19,6 +20,8 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'forget-password', component: ForgetPasswordComponent },
   { path: 'reset-password/:token', component: ResetPasswordComponent },
+  { path: 'confirm-password-change/:token', component: PasswordConfirmComponent },
+  { path: 'cancel-password-change/:token', component: PasswordConfirmComponent },
   { path: 'login', component: LoginComponent }, // Route pour le login
   { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] }, // Protégée par le guard
   { path: 'alimentation', component: FeedingManagementComponent, canActivate: [AuthGuard] }, // Protégée par le guard

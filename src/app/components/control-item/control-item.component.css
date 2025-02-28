@@ -189,11 +189,11 @@
 }
 
 input:checked + .slider {
-  background-color: #2196F3;
+  background-color: #09B462;
 }
 
 input:focus + .slider {
-  box-shadow: 0 0 1px #2196F3;
+  box-shadow: 0 0 1px #09B462;
 }
 
 input:checked + .slider:before {
@@ -270,4 +270,48 @@ input:checked + .slider:before {
 .error-icon {
   margin-right: 5px;
   font-size: 0.9rem;
+}
+
+
+.styled-schedule {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-time {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.time-label {
+  font-weight: bold;
+  color: #333;
+}
+
+.time-value {
+  color: #666;
+}
+
+.schedule-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.schedule-button:hover {
+  background-color: #0056b3;
+}
+
+.no-schedule {
+  color: #999;
+  font-style: italic;
+  margin: 10px 0;
 }

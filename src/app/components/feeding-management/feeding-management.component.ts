@@ -105,6 +105,11 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       this.updateFeedingStatus();
     }, 60000);
 
+    this.updateInterval = setInterval(() => {
+      this.updateFeedingStatus();
+      this.checkActiveProgramStatus(); // Ajouter cette ligne
+    }, 60000);
+
     this.notificationsInterval = setInterval(() => {
       this.loadUnreadNotifications();
     }, 300000); // Check for new notifications every 5 minutes
@@ -370,7 +375,13 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     this.isFeedingSystemActive = !this.isFeedingSystemActive;
   
     if (this.isFeedingSystemActive) {
-      // Démarrer le système
+      // Vérifier s'il y a des programmes actifs actuellement
+      const activeProgram = this.getActiveProgram();
+      if (!activeProgram) {
+        console.log('Aucun programme actif pour le moment, le système attendra la prochaine période');
+      }
+      
+      // Démarrer le système quand même
       this.startFeedingSystem();
     } else {
       // Arrêter le système
@@ -380,49 +391,66 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
 
 
   startFeedingSystem() {
-    // Trouver le programme d'alimentation actif
-    const activeProgram = this.getActiveProgram();
-  
-    if (!activeProgram || !activeProgram._id || !activeProgram.stockId) {
-      return;
-    }
-  
-    // Décrémenter la quantité de nourriture
-    const decrementAmount = 0.5; // ou la quantité que vous souhaitez décrémenter
-  
-    this.alimentationService.decrementFeedingQuantity(activeProgram._id, decrementAmount)
-      .subscribe({
-        next: (updatedFeeding) => {
-          // Mettre à jour la quantité dans le programme
-          activeProgram.quantity = updatedFeeding.quantity;
-  
-          // Mettre à jour le stock
-          if (activeProgram.stockId) {
-            this.alimentationService.updateStockQuantity(activeProgram.stockId, decrementAmount)
-              .subscribe({
-                next: () => {
-                  // Mettre à jour la jauge de nourriture
-                  this.foodTankLevel = Math.max(0, this.foodTankLevel - decrementAmount);
-  
-                  // Mettre à jour les statistiques
-                  this.dailyFoodConsumption += decrementAmount;
-                  this.dailyDistributions++;
-  
-                  // Forcer la mise à jour de l'interface
-                  this.cdr.detectChanges();
-                },
-                error: (error) => {
-                  console.error('Erreur lors de la mise à jour du stock:', error);
-                }
-              });
+    this.feedingInterval = setInterval(() => {
+      const activeProgram = this.getActiveProgram();
+      
+      // Si aucun programme actif ou si on est hors de la plage horaire, arrêter
+      if (!activeProgram || !activeProgram._id) {
+        return;
+      }
+      
+      // Vérifier si nous sommes toujours dans la plage horaire
+      if (!this.isWithinTimeRange(activeProgram)) {
+        console.log('Programme hors plage horaire, arrêt de la décrémentation');
+        // Ne pas arrêter le système entier, juste passer au programme suivant
+        return;
+      }
+      
+      const decrementAmount = 0.5;
+      const currentQuantity = typeof activeProgram.quantity === 'number' ? 
+        activeProgram.quantity : parseFloat(activeProgram.quantity as any) || 0;
+      const newQuantity = Math.max(0, currentQuantity - decrementAmount);
+      
+      this.alimentationService.decrementFeedingQuantity(activeProgram._id, decrementAmount)
+        .subscribe({
+          next: (updatedFeeding) => {
+            activeProgram.quantity = typeof updatedFeeding.quantity === 'number' ? 
+              updatedFeeding.quantity : parseFloat(updatedFeeding.quantity as any) || 0;
+    
+            if (activeProgram.stockId) {
+              this.alimentationService.updateStockQuantity(activeProgram.stockId, decrementAmount)
+                .subscribe({
+                  next: () => {
+                    console.log('Stock décrémenté avec succès');
+                    
+                    this.updateTankLevels();
+                    this.dailyFoodConsumption += decrementAmount;
+                    this.dailyDistributions++;
+    
+                    if (activeProgram.quantity <= 0) {
+                      // Ne pas arrêter le système entier, juste ce programme
+                      activeProgram.quantity = 0;
+                      this.updateProgram(activeProgram);
+                    }
+                    
+                    this.cdr.detectChanges();
+                  },
+                  error: (error) => {
+                    console.error('Erreur lors de la décrémentation du stock:', error);
+                  }
+                });
+            } else {
+              this.updateTankLevels();
+              this.cdr.detectChanges();
+            }
+          },
+          error: (error) => {
+            console.error('Erreur lors de la décrémentation:', error);
           }
-        },
-        error: (error) => {
-          console.error('Erreur lors de la décrémentation:', error);
-        }
-      });
+        });
+    }, 2000);
   }
-
+  
 
 
   private stopFeedingSystem() {
@@ -441,6 +469,37 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     const currentMinutes = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinutes;
   
+    // Trouver tous les programmes actifs dans la plage horaire actuelle
+    const activePrograms = this.feedingPrograms.filter(program => {
+      if (!program.programStartTime || !program.programEndTime) return false;
+  
+      const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
+      const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+      const startTime = startHours * 60 + startMinutes;
+      const endTime = endHours * 60 + endMinutes;
+  
+      // Convertir en nombre si nécessaire
+      const quantity = typeof program.quantity === 'number' ? 
+        program.quantity : parseFloat(program.quantity as any) || 0;
+  
+      return program.feedType !== 'eau' && 
+             quantity > 0 && 
+             currentTime >= startTime && 
+             currentTime <= endTime;
+    });
+  
+    // Retourner le premier programme actif, ou undefined si aucun n'est actif
+    return activePrograms.length > 0 ? activePrograms[0] : undefined;
+  }
+
+
+  // Nouvelle méthode pour obtenir le programme actif
+  private getActiveWaterProgram(): FeedingProgram | undefined {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinutes;
+  
     return this.feedingPrograms.find(program => {
       if (!program.programStartTime || !program.programEndTime) return false;
   
@@ -449,41 +508,66 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       const startTime = startHours * 60 + startMinutes;
       const endTime = endHours * 60 + endMinutes;
   
-      return program.feedType !== 'eau' && 
-             program.quantity > 0 && 
+      // Convertir en nombre si nécessaire
+      const quantity = typeof program.quantity === 'number' ? 
+        program.quantity : parseFloat(program.quantity as any) || 0;
+  
+      return program.feedType === 'eau' && 
+             quantity > 0 && 
              currentTime >= startTime && 
              currentTime <= endTime;
     });
   }
-  
 
 
-  // Nouvelle méthode pour obtenir le programme actif
-  private getActiveWaterProgram(): FeedingProgram | undefined {
-    return this.feedingPrograms.find(program => 
-      program.feedType === 'eau' && 
-      program.quantity > 0 &&
-      this.isWithinTimeRange(program)
-    );
-  }
 
   private isWithinTimeRange(program: FeedingProgram): boolean {
-    if (!program.programStartTime || !program.programEndTime) {
-      return true; // Si pas de plage horaire définie, considérer comme toujours actif
-    }
-  
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinutes;
-  
-    const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
-    const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
-    const startTime = startHours * 60 + startMinutes;
-    const endTime = endHours * 60 + endMinutes;
-  
-    return currentTime >= startTime && currentTime <= endTime;
+  if (!program.programStartTime || !program.programEndTime) {
+    return false; // Si pas de plage horaire définie, considérer comme inactif
   }
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentTime = currentHour * 60 + currentMinutes;
+
+  const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
+  const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+  const startTime = startHours * 60 + startMinutes;
+  const endTime = endHours * 60 + endMinutes;
+
+  // Vérifier si l'heure actuelle est dans la plage horaire
+  return currentTime >= startTime && currentTime <= endTime;
+}
+
+
+
+private checkActiveProgramStatus() {
+  // Cette méthode est appelée régulièrement pour vérifier si un programme doit être arrêté
+  if (this.isFeedingSystemActive) {
+    const activeProgram = this.getActiveProgram();
+    
+    // Si aucun programme actif n'est trouvé, vérifier si c'est parce que l'heure de fin est passée
+    if (!activeProgram) {
+      // Vérifier s'il y a des programmes qui ont atteint leur heure de fin
+      const programsToCheck = this.feedingPrograms.filter(p => 
+        p.feedType !== 'eau' && 
+        typeof p.quantity === 'number' ? p.quantity > 0 : parseFloat(p.quantity as any) > 0
+      );
+      
+      for (const program of programsToCheck) {
+        if (!this.isWithinTimeRange(program)) {
+          console.log('Programme terminé car hors plage horaire');
+        }
+      }
+      
+      // Si vraiment aucun programme actif, arrêter complètement le système
+      if (programsToCheck.length === 0) {
+        this.stopFeedingSystem();
+      }
+    }
+  }
+}
 
 
 
@@ -498,18 +582,24 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       this.waterInterval = setInterval(() => {
         const activeWaterProgram = this.getActiveWaterProgram();
   
-        if (!activeWaterProgram || !activeWaterProgram._id || !activeWaterProgram.stockId) {
+        if (!activeWaterProgram || !activeWaterProgram._id) {
           return;
         }
   
-        if (activeWaterProgram.quantity > 0) {
+        // Convertir en nombre si nécessaire
+        const currentQuantity = typeof activeWaterProgram.quantity === 'number' ? 
+          activeWaterProgram.quantity : parseFloat(activeWaterProgram.quantity as any) || 0;
+  
+        if (currentQuantity > 0) {
           const decrementAmount = 0.5;
-          const newQuantity = Math.max(0, activeWaterProgram.quantity - decrementAmount);
+          const newQuantity = Math.max(0, currentQuantity - decrementAmount);
   
           this.alimentationService.decrementFeedingQuantity(activeWaterProgram._id, decrementAmount)
             .subscribe({
               next: (updatedFeeding) => {
-                activeWaterProgram.quantity = updatedFeeding.quantity;
+                // Mettre à jour la quantité localement
+                activeWaterProgram.quantity = typeof updatedFeeding.quantity === 'number' ? 
+                  updatedFeeding.quantity : parseFloat(updatedFeeding.quantity as any) || 0;
   
                 if (activeWaterProgram.stockId) {
                   this.alimentationService.updateStockQuantity(activeWaterProgram.stockId, decrementAmount)
@@ -518,13 +608,8 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
                         this.dailyWaterConsumption += decrementAmount;
                         this.dailyDistributions++;
   
-                        // Mise à jour directe des jauges d'eau
-                        const totalWater = this.feedingPrograms
-                          .filter(p => p.feedType === 'eau')
-                          .reduce((sum, p) => sum + p.quantity, 0);
-  
-                        const maxQuantity = 100; // ou votre valeur maximale
-                        this.waterTankLevel = (totalWater / maxQuantity) * 100;
+                        // Mise à jour des jauges via la méthode commune
+                        this.updateTankLevels();
   
                         // Forcer la mise à jour de l'interface
                         this.cdr.detectChanges();
@@ -538,6 +623,10 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
                         this.stopWaterSystem();
                       }
                     });
+                } else {
+                  // Même si pas de stock, mettre à jour l'interface
+                  this.updateTankLevels();
+                  this.cdr.detectChanges();
                 }
               },
               error: (error) => {
@@ -553,6 +642,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       this.stopWaterSystem();
     }
   }
+  
 
 
 private stopWaterSystem() {
@@ -877,13 +967,19 @@ canActivateSystems(): boolean {
     if (!this.feedingPrograms || this.feedingPrograms.length === 0) {
       this.foodTankLevel = 0;
       this.waterTankLevel = 0;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
       return;
     }
   
-    // Calculer les totaux actuels
+    // Définir des capacités maximales pour les réservoirs
+    const maxFoodCapacity = 100; // Ajustez cette valeur selon vos besoins réels
+    const maxWaterCapacity = 100; // Ajustez cette valeur selon vos besoins réels
+  
+    // Calculer les totaux actuels en tenant compte des types dynamiques
     const totals = this.feedingPrograms.reduce((acc, program) => {
-      const quantity = program.quantity || 0;
+      // Convertir en nombre si c'est une chaîne ou un autre type
+      const quantity = typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0;
+      
       if (program.feedType === 'eau') {
         acc.water += quantity;
       } else {
@@ -892,12 +988,11 @@ canActivateSystems(): boolean {
       return acc;
     }, { food: 0, water: 0 });
   
-    // Mettre à jour les jauges
-    this.foodTankLevel = Math.max(0, Math.min(100, (totals.food / 100) * 100));
-    this.waterTankLevel = Math.max(0, Math.min(100, (totals.water / 100) * 100));
+    // Calculer les pourcentages par rapport aux capacités maximales
+    this.foodTankLevel = Math.min(100, Math.max(0, (totals.food / maxFoodCapacity) * 100));
+    this.waterTankLevel = Math.min(100, Math.max(0, (totals.water / maxWaterCapacity) * 100));
   
-    // S'assurer que l'interface est mise à jour
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   trackByFn(index: number, item: any): any {

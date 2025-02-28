@@ -46,6 +46,8 @@ export class VaccinationComponent implements OnInit, AfterViewInit {
   administeredVaccines: Vaccine[] = [];
   loading = false;
 
+  minDate: string;
+
   // Pagination pour les vaccins à venir
   dataSource = new MatTableDataSource<Vaccine>([]);
   displayedColumns: string[] = ['name', 'scheduledDate', 'numberOfChickens', 'actions'];
@@ -64,9 +66,13 @@ export class VaccinationComponent implements OnInit, AfterViewInit {
     private snackBar: MatSnackBar,
     private dialog: MatDialog
   ) {
+
+    const today = new Date();
+    this.minDate = today.toISOString().split('T')[0];
+
     // Initialisation du formulaire de génération de calendrier
     this.scheduleForm = this.fb.group({
-      startDate: [new Date(), Validators.required],
+      startDate: [today, [Validators.required, this.dateValidator()]],
       chickenType: ['pondeuse', Validators.required],
       numberOfChickens: [10, [Validators.required, Validators.min(1)]],
       scheduleType: ['standard']
@@ -78,6 +84,20 @@ export class VaccinationComponent implements OnInit, AfterViewInit {
       reminderDays: [2, [Validators.min(1), Validators.max(7)]],
       dailySummary: [false]
     });
+  }
+
+
+  dateValidator() {
+    return (control: { value: any; }) => {
+      const inputDate = new Date(control.value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Réinitialiser l'heure à minuit pour comparer juste les dates
+      
+      if (inputDate < today) {
+        return { 'pastDate': true };
+      }
+      return null;
+    };
   }
 
   ngOnInit(): void {

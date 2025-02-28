@@ -141,6 +141,30 @@ export class EnvironmentalService {
     );
   }
 
+
+  /**
+ * Programme l'allumage automatique de la lampe entre deux horaires.
+ * @param startTime - L'heure de début (format HH:MM).
+ * @param endTime - L'heure de fin (format HH:MM).
+ * @param enabled - Si la programmation est activée (optionnel, par défaut true).
+ * @returns Observable<any> - La réponse du serveur.
+ */
+scheduleLightingControl(
+  startTime: string,
+  endTime: string,
+  enabled: boolean = true
+): Observable<any> {
+  const body = {
+    startTime,
+    endTime,
+    enabled
+  };
+
+  return this.http.post<any>(`${this.apiUrl}/schedule/lighting`, body, { headers: this.getHeader() }).pipe(
+    catchError(this.handleError<any>('scheduleLightingControl'))
+  );
+}
+
   // --------------------------
   // Gestion des erreurs
   // --------------------------

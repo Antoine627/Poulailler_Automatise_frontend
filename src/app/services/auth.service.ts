@@ -28,7 +28,16 @@ export class AuthService {
    */
   login(email: string, password: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, { email, password }).pipe(
-      catchError(this.handleError) // Gestion des erreurs
+      catchError(error => {
+        console.error('Erreur de login détaillée:', error);
+        
+        // Ajouter un message plus spécifique pour les erreurs d'authentification
+        if (error.status === 401) {
+          return throwError(() => new Error('Identifiants incorrects. Si vous venez de changer votre mot de passe, assurez-vous d\'utiliser le nouveau.'));
+        }
+        
+        return this.handleError(error);
+      })
     );
   }
 
@@ -97,6 +106,14 @@ export class AuthService {
     return this.http.get(`${this.apiUrl}/me`, { headers: this.getHeader() }).pipe(
       catchError(this.handleError) // Gestion des erreurs
     );
+  }
+
+
+  updateUserInfo(userInfo: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/update-profile`, userInfo, { headers: this.getHeader() })
+      .pipe(
+        catchError(this.handleError)
+      );
   }
 
   // --------------------------
@@ -186,6 +203,23 @@ cancelPasswordChange(token: string): Observable<any> {
     );
 }
 
+
+// Dans ton service auth.service.ts, ajoute une méthode pour gérer la redirection
+handlePasswordChangeRedirect(response: any): void {
+  if (response && response.success) {
+    // Déconnecte l'utilisateur
+    this.logout();
+    
+    // Stocke un message temporaire dans localStorage pour l'afficher après redirection
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('passwordChangeSuccess', 'true');
+    }
+    
+    // Redirige vers la page de connexion
+    window.location.href = '/login';
+  }
+}
+
   // --------------------------
   // Méthodes de gestion du code
   // --------------------------
@@ -194,11 +228,19 @@ cancelPasswordChange(token: string): Observable<any> {
    * Met à jour le code de connexion de l'utilisateur.
    * @returns Observable<any> - La réponse du serveur.
    */
-  updateCode(): Observable<any> {
-    return this.http.post(`${this.apiUrl}/updateCode`, {}, { headers: this.getHeader() }).pipe(
-      catchError(this.handleError) // Gestion des erreurs
-    );
-  }
+  // Dans auth.service.ts
+updateCode(): Observable<any> {
+  const headers = this.getHeader();
+  return this.http.post(`${this.apiUrl}/updateCode`, {}, { headers }).pipe(
+    catchError(error => {
+      console.error('Erreur détaillée:', error);
+      if (error.status === 500) {
+        return throwError(() => new Error('Erreur serveur lors de la génération du code'));
+      }
+      return throwError(() => error);
+    })
+  );
+}
 
   // --------------------------
   // Gestion des erreurs

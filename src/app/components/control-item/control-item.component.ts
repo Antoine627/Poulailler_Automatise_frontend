@@ -1,11 +1,25 @@
+
 import { Component, Input, OnInit, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { faClock, faSync, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faSync, faExclamationTriangle, faEdit, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { StockService } from '../../services/stock.service';
 import { Subscription, timer, interval } from 'rxjs';
 import { switchMap, catchError, finalize, tap } from 'rxjs/operators';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { of } from 'rxjs';
+import { EnvironmentalService } from '../../services/environmental.service';
+import { LightScheduleModalComponent } from '../light-schedule-modal/light-schedule-modal.component';
+
+
+
+interface LightSchedule {
+  startTime: string;
+  endTime: string;
+  enabled: boolean;
+  intensity?: number;
+}
+
 
 enum ControlStatus {
   IDLE = 'En attente',
@@ -22,7 +36,7 @@ enum ControlStatus {
   templateUrl: './control-item.component.html',
   styleUrls: ['./control-item.component.css'],
   standalone: true,
-  imports: [CommonModule, FontAwesomeModule]
+  imports: [CommonModule, FontAwesomeModule, LightScheduleModalComponent]
 })
 export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   @Input() title: string = '';
@@ -39,13 +53,20 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   currentValue: number = 0;
   initialValue: number = 0;
   private decrementInterval: any;
+  @Input() location: string = ''; // Add location property
   private refreshSubscription: Subscription | null = null;
   private subscriptions: Subscription[] = [];
+
+  
   
   // Icônes
   faClock = faClock;
   faSync = faSync;
   faExclamationTriangle = faExclamationTriangle;
+  faEdit = faEdit;
+  faPlus = faPlus;
+
+  lightSchedule: LightSchedule | null = null;
   
   // États
   isLoading: boolean = false;
@@ -54,7 +75,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   lastRefresh: Date | null = null;
   ControlStatus = ControlStatus; // Pour pouvoir utiliser l'enum dans le template
 
-  constructor(private stockService: StockService) {}
+  constructor(private stockService: StockService, private environmentalService: EnvironmentalService, private modalService: NgbModal) {}
 
   ngOnInit() {
     this.updateCurrentValue();
@@ -66,6 +87,23 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
       this.refreshStockData();
       this.setupPeriodicRefresh();
     }
+
+    if (this.type === 'light') {
+      this.loadLightSchedule();
+    }
+  }
+
+
+  loadLightSchedule() {
+    // Vous devrez implémenter cette méthode pour récupérer la programmation depuis le backend
+    // Pour l'instant, nous utilisons une programmation factice
+    // this.environmentalService.getLightSchedule(this.location).subscribe(schedule => {
+    //   this.lightSchedule = schedule;
+    // });
+    
+    // Programmation factice pour l'exemple
+    // À remplacer par l'appel API réel
+    this.lightSchedule = null; // Commencez sans programmation
   }
 
   private loadStockIdByType() {
@@ -352,6 +390,55 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   openModal() {
-    console.log('Open scheduling modal');
+    if (this.type === 'light') {
+      this.openLightScheduleModal();
+    } else {
+      // Logique existante pour les autres types
+    }
+  }
+
+
+  // Méthode pour ouvrir le modal de programmation de lumière
+  openLightScheduleModal() {
+    const modalRef = this.modalService.open(LightScheduleModalComponent, {
+      size: 'lg', // Taille de la modale
+      backdrop: 'static' // Empêche la fermeture de la modale en cliquant en dehors
+    });
+  
+    modalRef.componentInstance.title = 'Programmer l\'éclairage';
+    modalRef.componentInstance.lightSchedule = this.lightSchedule;
+  
+    modalRef.result.then((result: any) => {
+      if (result) {
+        this.saveLightSchedule(result);
+      }
+    }).catch(() => {
+      // Modal fermée sans action
+    });
+  }
+
+
+  // Méthode pour sauvegarder la programmation
+  saveLightSchedule(schedule: LightSchedule) {
+    this.isLoading = true;
+    this.errorMessage = '';
+  
+    this.environmentalService.scheduleLightingControl(
+      schedule.startTime,
+      schedule.endTime,
+      schedule.enabled
+    ).subscribe({
+      next: (response) => {
+        this.lightSchedule = schedule;
+        this.isLoading = false;
+        console.log('Programmation enregistrée avec succès:', response);
+        // Afficher un message de succès si nécessaire
+      },
+      error: (error) => {
+        console.error('Erreur lors de la programmation de l\'éclairage:', error);
+        this.errorMessage = error.error?.error || 'Erreur lors de la programmation de l\'éclairage';
+        this.isLoading = false;
+      }
+    });
   }
 }

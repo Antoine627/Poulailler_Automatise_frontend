@@ -8,7 +8,9 @@
     minQuantity: number;
     userId?: string;
     lastUpdated?: Date;
+    maxCapacity?: number;
   }
+  
   
   export interface StockStats {
     type: string;
@@ -24,6 +26,8 @@
     description: string;
     createdAt?: Date;
   }
+
+  
   
 
   export interface LowStockAlert {

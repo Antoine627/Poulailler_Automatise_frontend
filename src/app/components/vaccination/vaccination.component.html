@@ -14,9 +14,9 @@
             <div class="form-row">
               <div class="form-field">
                 <label for="startDate">Date de début</label>
-                <input type="date" id="startDate" formControlName="startDate">
+                <input type="date" id="startDate" formControlName="startDate" [min]="minDate">
                 <span class="error" *ngIf="scheduleForm.get('startDate')?.invalid && scheduleForm.get('startDate')?.touched">
-                  Date requise
+                  Date requise et ne peut pas être antérieure à aujourd'hui
                 </span>
               </div>
 
