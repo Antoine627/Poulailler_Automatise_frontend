@@ -44,7 +44,7 @@
           </div>
 
           <!-- Rentabilité -->
-          <div class="card">
+          <!-- <div class="card">
             <div class="card-header">
               <h3>Rentabilité</h3>
             </div>
@@ -53,7 +53,7 @@
                 {{ profitabilityCalculation.profit || 0 | number:'1.0-0' }} FCFA
               </p>
             </div>
-          </div>
+          </div> -->
 
           <!-- Résultat -->
           <div class="card">
@@ -232,7 +232,7 @@
                   <p><strong>Coût d'alimentation par poulet:</strong> {{ feedCalculation.totalCostFCFA / (feedCalculation.survivingChickens || feedCalculation.chickenCount) | number:'1.0-0' }} FCFA</p>
                 </div>
                 <div class="result-actions">
-                  <button class="btn secondary" (click)="exportResultsToCSV()">Exporter les résultats</button>
+                  <!-- <button class="btn secondary" (click)="exportResultsToCSV()">Exporter les résultats</button> -->
                   <button class="btn primary" (click)="showResults = false">Fermer</button>
                 </div>
               </div>
