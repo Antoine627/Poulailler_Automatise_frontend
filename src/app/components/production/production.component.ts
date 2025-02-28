@@ -4,7 +4,9 @@ import { ProductionService } from '../../services/production.service';
 import { forkJoin } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Production, ProductionStats, CostStats, ProductionDisplay } from '../../models/production.model';
+import { Production } from '../../models/production.model';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 
 interface FeedRequirement {
@@ -91,7 +93,7 @@ interface ProfitabilityResults {
 @Component({
   selector: 'app-production',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatDialogModule],
   templateUrl: './production.component.html',
   styleUrls: ['./production.component.css'],
 })
@@ -181,7 +183,8 @@ notificationType: 'success' | 'error' | 'info' = 'info';
 
   constructor(
     private costService: CostService,
-    private productionService: ProductionService
+    private productionService: ProductionService,
+    private dialog: MatDialog
   ) {}
 
   // 1. Vérifiez que votre service renvoie bien des données
@@ -564,18 +567,35 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
 
 
   deleteProduction(production: Production) {
-    if (production._id && confirm('Êtes-vous sûr de vouloir supprimer cette production ?')) {
-      this.productionService.deleteProduction(production._id).subscribe({
-        next: () => {
-          this.productions = this.productions.filter(p => p._id !== production._id);
-          this.loadDashboardData(); // Recharger les données
-        },
-        error: (error) => {
-          console.error('Erreur lors de la suppression:', error);
-          // Gérer l'erreur (afficher un message à l'utilisateur)
-        }
-      });
-    }
+    if (!production._id) return;
+    
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Confirmer la suppression',
+        message: 'Êtes-vous sûr de vouloir supprimer cette production ?',
+        confirmButtonText: 'Supprimer',
+        cancelButtonText: 'Annuler',
+        confirmButtonIcon: 'delete',
+        confirmButtonColor: '#f44336' // Rouge pour l'action de suppression
+      }
+    });
+  
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.productionService.deleteProduction(production._id!).subscribe({
+          next: () => {
+            this.productions = this.productions.filter(p => p._id !== production._id);
+            this.loadDashboardData(); // Recharger les données
+            this.showNotification('Production supprimée avec succès', 'success');
+          },
+          error: (error) => {
+            console.error('Erreur lors de la suppression:', error);
+            this.showNotification('Erreur lors de la suppression de la production', 'error');
+          }
+        });
+      }
+    });
   }
 
   cancelEdit() {
