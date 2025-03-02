@@ -43,12 +43,13 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   isFeedingSystemActive: boolean = false;
   lastFeedingTime: string = '';
   nextFeedingTime: string = '';
-  foodTankLevel: number = 100;
-  feedingQuantity: number = 5;
-  feedingSchedule: string[] = ['08:00', '16:00'];
-  isAutoMode: boolean = true;
-  isWaterSystemActive: boolean = false;
-  waterTankLevel: number = 100;
+  foodTankLevel: number = 0;
+  waterTankLevel: number = 0;
+  foodTotal: number = 0;
+  waterTotal: number = 0;
+  foodType: string = 'Nourriture';
+  hasFoodPrograms: boolean = false;
+
   dailyFoodConsumption: number = 0;
   dailyWaterConsumption: number = 0;
   dailyDistributions: number = 0;
@@ -57,7 +58,10 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   bulkFeedingMode: boolean = false;
   bulkFeedings: Feeding[] = [];
 
+  programGauges: Map<string, number> = new Map();
+
   private initialFoodQuantity: number = 0;
+  private initialWaterQuantity: number = 0;
   
   private subscriptions: Subscription = new Subscription();
   private updateInterval: any;
@@ -65,7 +69,16 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   private waterInterval: any;
   private notificationsInterval: any;
 
+  lastWateringTime: string = '--:--';
+  nextWateringTime: string = '--:--';
+
   isAuthPage: boolean = false;
+  isWaterSystemActive: boolean = false;
+  waterPrograms: FeedingProgram[] = [];
+
+  showNotificationBar = false;
+  notificationMessage = '';
+  notificationType = '';
 
   constructor(
     private fb: FormBuilder,
@@ -98,36 +111,22 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     this.loadFeedingPrograms();
     this.loadAvailableStocks();
     this.loadUnreadNotifications();
-    this.initDailyStats(); 
-
-    this.updateFeedingStatus();
-    this.updateInterval = setInterval(() => {
-      this.updateFeedingStatus();
-    }, 60000);
+    this.initDailyStats();
 
     this.updateInterval = setInterval(() => {
-      this.updateFeedingStatus();
-      this.checkActiveProgramStatus(); // Ajouter cette ligne
+      this.checkCompletedPrograms();
     }, 60000);
 
     this.notificationsInterval = setInterval(() => {
       this.loadUnreadNotifications();
-    }, 300000); // Check for new notifications every 5 minutes
+    }, 300000);
   }
 
   ngOnDestroy() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-    }
-    if (this.feedingInterval) {
-      clearInterval(this.feedingInterval);
-    }
-    if (this.waterInterval) {
-      clearInterval(this.waterInterval);
-    }
-    if (this.notificationsInterval) {
-      clearInterval(this.notificationsInterval);
-    }
+    if (this.updateInterval) clearInterval(this.updateInterval);
+    if (this.feedingInterval) clearInterval(this.feedingInterval);
+    if (this.waterInterval) clearInterval(this.waterInterval);
+    if (this.notificationsInterval) clearInterval(this.notificationsInterval);
     
     this.subscriptions.unsubscribe();
   }
@@ -150,86 +149,49 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     });
   }
 
-  updateFeedingStatus() {
-    const now = new Date();
-
-    if (this.feedingHistory.length > 0) {
-      this.lastFeedingTime = new Date(this.feedingHistory[0].createdAt!)
-        .toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    const nextScheduledTime = this.feedingSchedule.find(time => {
-      const [hours, minutes] = time.split(':');
-      const scheduledTime = new Date();
-      scheduledTime.setHours(parseInt(hours), parseInt(minutes));
-      return scheduledTime > now;
-    });
-
-    this.nextFeedingTime = nextScheduledTime || this.feedingSchedule[0];
-    this.cdr.markForCheck();
-  }
-
   loadFeedingHistory() {
-    const params = {
-      startDate: new Date(this.startDate),
-      endDate: new Date(this.endDate),
-      limit: 50
-    };
-  
-    const subscription = this.alimentationService.getFeedingHistory(params)
-      .subscribe({
+    const params = { startDate: new Date(this.startDate), endDate: new Date(this.endDate), limit: 50 };
+    this.subscriptions.add(
+      this.alimentationService.getFeedingHistory(params).subscribe({
         next: (history) => {
           this.feedingHistory = history;
           this.updateLastFeedingTime();
           this.calculateDailyConsumption();
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement de l\'historique:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+        error: (error) => console.error('Erreur lors du chargement de l\'historique:', error)
+      })
+    );
   }
 
   loadFeedingStats() {
-    const params = {
-      startDate: new Date(this.startDate),
-      endDate: new Date(this.endDate)
-    };
-  
-    const subscription = this.alimentationService.getFeedingStats(params)
-      .subscribe({
+    const params = { startDate: new Date(this.startDate), endDate: new Date(this.endDate) };
+    this.subscriptions.add(
+      this.alimentationService.getFeedingStats(params).subscribe({
         next: (stats) => {
           this.feedingStats = stats;
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement des statistiques:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
-  } 
+        error: (error) => console.error('Erreur lors du chargement des statistiques:', error)
+      })
+    );
+  }
 
   loadStockAlerts() {
-    const subscription = this.alimentationService.getAlertLowStock()
-      .subscribe({
+    this.subscriptions.add(
+      this.alimentationService.getAlertLowStock().subscribe({
         next: (alerts) => {
           this.stockAlerts = alerts;
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement des alertes de stock:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+        error: (error) => console.error('Erreur lors du chargement des alertes de stock:', error)
+      })
+    );
   }
 
   loadFeedingPrograms() {
-    const subscription = this.alimentationService.getAllFeedings()
-      .subscribe({
+    this.subscriptions.add(
+      this.alimentationService.getAllFeedings().subscribe({
         next: (feedings: Feeding[]) => {
           this.feedingPrograms = feedings
             .filter(feeding => feeding.programStartTime && feeding.programEndTime)
@@ -243,168 +205,137 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
               notes: feeding.notes,
               _id: feeding._id
             }));
-  
-          // Calculer la quantité totale initiale de nourriture
+
+          this.waterPrograms = this.feedingPrograms.filter(p => p.feedType === 'Eau');
+          this.hasFoodPrograms = this.feedingPrograms.some(p => p.feedType !== 'Eau');
+          const firstFoodProgram = this.feedingPrograms.find(p => p.feedType !== 'Eau');
+          this.foodType = firstFoodProgram ? firstFoodProgram.feedType : 'Nourriture';
+
           this.initialFoodQuantity = this.feedingPrograms
-            .filter(program => program.feedType !== 'eau')
+            .filter(program => program.feedType !== 'Eau')
             .reduce((total, program) => total + program.quantity, 0);
-  
+
+          this.initialWaterQuantity = this.feedingPrograms
+            .filter(program => program.feedType === 'Eau')
+            .reduce((total, program) => total + program.quantity, 0);
+
+          console.log('Programmes chargés :', this.feedingPrograms);
+          console.log('Programmes d\'eau :', this.waterPrograms);
+          console.log('Quantité initiale nourriture :', this.initialFoodQuantity);
+          console.log('Quantité initiale eau :', this.initialWaterQuantity);
+
           this.updateNextFeedingTime();
           this.updateTankLevels();
-          this.updateConsumedFood(); // Nouvelle méthode
+          this.updateConsumedFood();
+          this.checkCompletedPrograms();
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement des programmes:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+        error: (error) => console.error('Erreur lors du chargement des programmes:', error)
+      })
+    );
   }
 
-
-  private updateConsumedFood() {
-  // Calculer la quantité restante de nourriture
-  const remainingFood = this.feedingPrograms
-    .filter(program => program.feedType !== 'eau')
-    .reduce((total, program) => total + program.quantity, 0);
-
-  // Calculer la quantité consommée
-  this.dailyFoodConsumption = this.initialFoodQuantity - remainingFood;
-  this.cdr.markForCheck();
-}
-
   loadAvailableStocks() {
-    const subscription = this.stockService.getAllStocks()
-      .subscribe({
+    this.subscriptions.add(
+      this.stockService.getAllStocks().subscribe({
         next: (stocks) => {
           this.availableStocks = stocks;
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement des stocks:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+        error: (error) => console.error('Erreur lors du chargement des stocks:', error)
+      })
+    );
   }
 
   loadUnreadNotifications() {
-    const subscription = this.alimentationService.getUnreadNotifications()
-      .subscribe({
+    this.subscriptions.add(
+      this.alimentationService.getUnreadNotifications().subscribe({
         next: (notifications) => {
           this.unreadNotifications = notifications;
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Erreur lors du chargement des notifications:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+        error: (error) => console.error('Erreur lors du chargement des notifications:', error)
+      })
+    );
   }
 
-  onSubmit() {
-    if (this.feedingForm.valid) {
-      const feeding: Feeding = {
-        ...this.feedingForm.value,
-        reminderSent: false
-      };
-      
-      const subscription = this.alimentationService.addFeeding(feeding)
-        .subscribe({
-          next: () => {
-            this.reloadData();
-            this.feedingForm.reset();
-            this.cdr.markForCheck();
-          },
-          error: (error) => {
-            console.error('Erreur lors de l\'ajout de l\'alimentation:', error);
-          }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
+  // Commandes manuelles pour l'alimentation
+  startFeedingManually() {
+    console.log('Tentative de démarrage manuel de l\'alimentation');
+    this.subscriptions.add(
+      this.alimentationService.sendManualCommandToArduino('START_FEEDING').subscribe({
+        next: (response) => {
+          console.log('Réponse START_FEEDING:', response);
+          this.isFeedingSystemActive = true;
+          this.lastFeedingTime = this.formatTimeString(new Date());
+          this.cdr.markForCheck();
+        },
+        error: (error) => console.error('Erreur START_FEEDING:', error)
+      })
+    );
   }
 
-  updateProgram(program: FeedingProgram) {
-    if (program._id) {
-      const subscription = this.alimentationService.updateFeeding(program._id, program)
-        .subscribe({
-          next: () => {
-            this.reloadData();
-            this.selectedProgram = null;
-            this.cdr.markForCheck();
-          },
-          error: (error) => {
-            console.error('Erreur lors de la mise à jour du programme:', error);
-          }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
+  stopFeedingManually() {
+    this.subscriptions.add(
+      this.alimentationService.sendManualCommandToArduino('STOP_FEEDING').subscribe({
+        next: () => {
+          this.isFeedingSystemActive = false;
+          this.cdr.markForCheck();
+          console.log('Commande manuelle STOP_FEEDING envoyée');
+        },
+        error: (error) => console.error('Erreur lors de l\'envoi de STOP_FEEDING:', error)
+      })
+    );
   }
 
-  deleteProgram(index: number) {
-    const program = this.feedingPrograms[index];
-    if (program._id && confirm('Êtes-vous sûr de vouloir supprimer ce programme ?')) {
-      const subscription = this.alimentationService.deleteFeeding(program._id)
-        .subscribe({
-          next: () => {
-            this.reloadData();
-            this.cdr.markForCheck();
-          },
-          error: (error) => {
-            console.error('Erreur lors de la suppression du programme:', error);
-          }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
+  // Commandes manuelles pour l'eau
+  startWaterManually() {
+    console.log('Tentative de démarrage manuel de l\'eau');
+    this.subscriptions.add(
+      this.alimentationService.sendManualCommandToArduino('START_WATER').subscribe({
+        next: (response) => {
+          console.log('Réponse START_WATER:', response);
+          this.isWaterSystemActive = true;
+          this.lastWateringTime = this.formatTimeString(new Date());
+          this.cdr.markForCheck();
+        },
+        error: (error) => console.error('Erreur START_WATER:', error)
+      })
+    );
   }
 
-
-  
+  stopWaterManually() {
+    this.subscriptions.add(
+      this.alimentationService.sendManualCommandToArduino('STOP_WATER').subscribe({
+        next: () => {
+          this.isWaterSystemActive = false;
+          this.cdr.markForCheck();
+          console.log('Commande manuelle STOP_WATER envoyée');
+        },
+        error: (error) => console.error('Erreur lors de l\'envoi de STOP_WATER:', error)
+      })
+    );
+  }
 
   toggleFeedingSystem() {
-    if (!this.feedingPrograms || this.feedingPrograms.length === 0) {
-      return;
-    }
-  
-    // Basculer l'état du système
+    if (!this.feedingPrograms || this.feedingPrograms.length === 0) return;
     this.isFeedingSystemActive = !this.isFeedingSystemActive;
-  
     if (this.isFeedingSystemActive) {
-      // Vérifier s'il y a des programmes actifs actuellement
       const activeProgram = this.getActiveProgram();
-      if (!activeProgram) {
-        console.log('Aucun programme actif pour le moment, le système attendra la prochaine période');
-      }
-      
-      // Démarrer le système quand même
+      if (!activeProgram) console.log('Aucun programme actif, attente prochaine période');
       this.startFeedingSystem();
     } else {
-      // Arrêter le système
       this.stopFeedingSystem();
     }
   }
-
 
   startFeedingSystem() {
     this.feedingInterval = setInterval(() => {
       const activeProgram = this.getActiveProgram();
       
-      // Si aucun programme actif ou si on est hors de la plage horaire, arrêter
-      if (!activeProgram || !activeProgram._id) {
-        return;
-      }
+      if (!activeProgram || !activeProgram._id) return;
       
-      // Vérifier si nous sommes toujours dans la plage horaire
-      if (!this.isWithinTimeRange(activeProgram)) {
-        console.log('Programme hors plage horaire, arrêt de la décrémentation');
-        // Ne pas arrêter le système entier, juste passer au programme suivant
-        return;
-      }
+      if (!this.isWithinTimeRange(activeProgram)) return;
       
       const decrementAmount = 0.5;
       const currentQuantity = typeof activeProgram.quantity === 'number' ? 
@@ -421,39 +352,29 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
               this.alimentationService.updateStockQuantity(activeProgram.stockId, decrementAmount)
                 .subscribe({
                   next: () => {
-                    console.log('Stock décrémenté avec succès');
-                    
                     this.updateTankLevels();
                     this.dailyFoodConsumption += decrementAmount;
                     this.dailyDistributions++;
     
                     if (activeProgram.quantity <= 0) {
-                      // Ne pas arrêter le système entier, juste ce programme
-                      activeProgram.quantity = 0;
                       this.updateProgram(activeProgram);
                     }
                     
                     this.cdr.detectChanges();
                   },
-                  error: (error) => {
-                    console.error('Erreur lors de la décrémentation du stock:', error);
-                  }
+                  error: (error) => console.error('Erreur lors de la décrémentation du stock:', error)
                 });
             } else {
               this.updateTankLevels();
               this.cdr.detectChanges();
             }
           },
-          error: (error) => {
-            console.error('Erreur lors de la décrémentation:', error);
-          }
+          error: (error) => console.error('Erreur lors de la décrémentation:', error)
         });
     }, 2000);
   }
-  
 
-
-  private stopFeedingSystem() {
+  stopFeedingSystem() {
     if (this.feedingInterval) {
       clearInterval(this.feedingInterval);
       this.feedingInterval = null;
@@ -462,420 +383,229 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-
-  private getActiveProgram(): FeedingProgram | undefined {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinutes;
-  
-    // Trouver tous les programmes actifs dans la plage horaire actuelle
-    const activePrograms = this.feedingPrograms.filter(program => {
-      if (!program.programStartTime || !program.programEndTime) return false;
-  
-      const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
-      const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
-      const startTime = startHours * 60 + startMinutes;
-      const endTime = endHours * 60 + endMinutes;
-  
-      // Convertir en nombre si nécessaire
-      const quantity = typeof program.quantity === 'number' ? 
-        program.quantity : parseFloat(program.quantity as any) || 0;
-  
-      return program.feedType !== 'eau' && 
-             quantity > 0 && 
-             currentTime >= startTime && 
-             currentTime <= endTime;
-    });
-  
-    // Retourner le premier programme actif, ou undefined si aucun n'est actif
-    return activePrograms.length > 0 ? activePrograms[0] : undefined;
-  }
-
-
-  // Nouvelle méthode pour obtenir le programme actif
-  private getActiveWaterProgram(): FeedingProgram | undefined {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinutes;
-  
-    return this.feedingPrograms.find(program => {
-      if (!program.programStartTime || !program.programEndTime) return false;
-  
-      const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
-      const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
-      const startTime = startHours * 60 + startMinutes;
-      const endTime = endHours * 60 + endMinutes;
-  
-      // Convertir en nombre si nécessaire
-      const quantity = typeof program.quantity === 'number' ? 
-        program.quantity : parseFloat(program.quantity as any) || 0;
-  
-      return program.feedType === 'eau' && 
-             quantity > 0 && 
-             currentTime >= startTime && 
-             currentTime <= endTime;
-    });
-  }
-
-
-
-  private isWithinTimeRange(program: FeedingProgram): boolean {
-  if (!program.programStartTime || !program.programEndTime) {
-    return false; // Si pas de plage horaire définie, considérer comme inactif
-  }
-
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
-  const currentTime = currentHour * 60 + currentMinutes;
-
-  const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
-  const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
-  const startTime = startHours * 60 + startMinutes;
-  const endTime = endHours * 60 + endMinutes;
-
-  // Vérifier si l'heure actuelle est dans la plage horaire
-  return currentTime >= startTime && currentTime <= endTime;
-}
-
-
-
-private checkActiveProgramStatus() {
-  // Cette méthode est appelée régulièrement pour vérifier si un programme doit être arrêté
-  if (this.isFeedingSystemActive) {
-    const activeProgram = this.getActiveProgram();
-    
-    // Si aucun programme actif n'est trouvé, vérifier si c'est parce que l'heure de fin est passée
-    if (!activeProgram) {
-      // Vérifier s'il y a des programmes qui ont atteint leur heure de fin
-      const programsToCheck = this.feedingPrograms.filter(p => 
-        p.feedType !== 'eau' && 
-        typeof p.quantity === 'number' ? p.quantity > 0 : parseFloat(p.quantity as any) > 0
-      );
-      
-      for (const program of programsToCheck) {
-        if (!this.isWithinTimeRange(program)) {
-          console.log('Programme terminé car hors plage horaire');
-        }
-      }
-      
-      // Si vraiment aucun programme actif, arrêter complètement le système
-      if (programsToCheck.length === 0) {
-        this.stopFeedingSystem();
-      }
-    }
-  }
-}
-
-
-
   toggleWaterSystem() {
-    if (!this.feedingPrograms || this.feedingPrograms.length === 0) {
-      return;
-    }
-  
+    if (!this.feedingPrograms || this.feedingPrograms.length === 0) return;
     this.isWaterSystemActive = !this.isWaterSystemActive;
-  
     if (this.isWaterSystemActive) {
-      this.waterInterval = setInterval(() => {
-        const activeWaterProgram = this.getActiveWaterProgram();
-  
-        if (!activeWaterProgram || !activeWaterProgram._id) {
-          return;
-        }
-  
-        // Convertir en nombre si nécessaire
-        const currentQuantity = typeof activeWaterProgram.quantity === 'number' ? 
-          activeWaterProgram.quantity : parseFloat(activeWaterProgram.quantity as any) || 0;
-  
-        if (currentQuantity > 0) {
-          const decrementAmount = 0.5;
-          const newQuantity = Math.max(0, currentQuantity - decrementAmount);
-  
-          this.alimentationService.decrementFeedingQuantity(activeWaterProgram._id, decrementAmount)
-            .subscribe({
-              next: (updatedFeeding) => {
-                // Mettre à jour la quantité localement
-                activeWaterProgram.quantity = typeof updatedFeeding.quantity === 'number' ? 
-                  updatedFeeding.quantity : parseFloat(updatedFeeding.quantity as any) || 0;
-  
-                if (activeWaterProgram.stockId) {
-                  this.alimentationService.updateStockQuantity(activeWaterProgram.stockId, decrementAmount)
-                    .subscribe({
-                      next: () => {
-                        this.dailyWaterConsumption += decrementAmount;
-                        this.dailyDistributions++;
-  
-                        // Mise à jour des jauges via la méthode commune
-                        this.updateTankLevels();
-  
-                        // Forcer la mise à jour de l'interface
-                        this.cdr.detectChanges();
-  
-                        if (newQuantity <= 0) {
-                          this.stopWaterSystem();
-                        }
-                      },
-                      error: (error) => {
-                        console.error('Erreur lors de la mise à jour du stock d\'eau:', error);
-                        this.stopWaterSystem();
-                      }
-                    });
-                } else {
-                  // Même si pas de stock, mettre à jour l'interface
-                  this.updateTankLevels();
-                  this.cdr.detectChanges();
-                }
-              },
-              error: (error) => {
-                console.error('Erreur lors de la décrémentation de l\'eau:', error);
-                this.stopWaterSystem();
-              }
-            });
-        } else {
-          this.stopWaterSystem();
-        }
-      }, 3000);
+      const activeWaterProgram = this.getActiveWaterProgram();
+      if (!activeWaterProgram) console.log('Aucun programme d\'eau actif, attente prochaine période');
+      this.startWaterSystem();
     } else {
       this.stopWaterSystem();
     }
   }
+
+  startWaterSystem() {
+    console.log('[startWaterSystem] Début de la vérification du programme d\'eau actif');
+    const activeWaterProgram = this.getActiveWaterProgram();
+    console.log('[startWaterSystem] Programme d\'eau actif:', activeWaterProgram);
   
-
-
-private stopWaterSystem() {
-  if (this.waterInterval) {
-    clearInterval(this.waterInterval);
-    this.waterInterval = null;
-  }
-  this.isWaterSystemActive = false;
-  this.cdr.markForCheck();
-}
-
-
-private initDailyStats() {
-  // Réinitialiser les statistiques à minuit
-  const now = new Date();
-  const night = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1, // lendemain
-    0, 0, 0 // minuit
-  );
-  const msToMidnight = night.getTime() - now.getTime();
-
-  // Réinitialiser maintenant si c'est un nouveau jour
-  this.resetDailyStats();
-
-  // Programmer la réinitialisation pour minuit
-  setTimeout(() => {
-    this.resetDailyStats();
-    // Répéter toutes les 24 heures
-    setInterval(() => this.resetDailyStats(), 24 * 60 * 60 * 1000);
-  }, msToMidnight);
-}
-
-
-private resetDailyStats() {
-  this.dailyFoodConsumption = 0;
-  this.dailyWaterConsumption = 0;
-  this.dailyDistributions = 0;
-  this.cdr.markForCheck();
-}
-
-// Nouvelle méthode pour obtenir le programme d'eau actif
-// private getActiveWaterProgram(): FeedingProgram | undefined {
-//   const now = new Date();
-//   const currentHour = now.getHours();
-//   const currentMinutes = now.getMinutes();
-//   const currentTime = currentHour * 60 + currentMinutes;
-
-//   return this.feedingPrograms.find(program => {
-//     if (!program.programStartTime || !program.programEndTime) return false;
-
-//     const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
-//     const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
-//     const startTime = startHours * 60 + startMinutes;
-//     const endTime = endHours * 60 + endMinutes;
-
-//     return program.feedType === 'eau' && 
-//            program.quantity > 0 && 
-//            currentTime >= startTime && 
-//            currentTime <= endTime;
-//   });
-// }
-
-
-
-canActivateSystems(): boolean {
-  return this.feedingPrograms && this.feedingPrograms.length > 0;
-}
-
-
-  distributeFoodNow() {
-    if (this.isFeedingSystemActive && this.feedingForm.get('stockId')?.value) {
-      const newFeeding: Feeding = {
-        quantity: this.feedingQuantity,
-        feedType: this.feedingForm.get('feedType')?.value || 'grain',
-        automaticFeeding: false,
-        stockId: this.feedingForm.get('stockId')?.value,
-        reminderSent: false,
-        notes: 'Distribution manuelle'
-      };
-
-      const subscription = this.alimentationService.addFeeding(newFeeding)
-        .subscribe({
+    if (activeWaterProgram && !this.isWaterSystemActive) {
+      console.log('[startWaterSystem] Programme actif détecté, tentative de démarrage automatique');
+      this.subscriptions.add(
+        this.alimentationService.sendManualCommandToArduino('START_WATER').subscribe({
           next: () => {
-            this.reloadData();
+            console.log('[startWaterSystem] Commande START_WATER envoyée avec succès');
+            this.isWaterSystemActive = true;
+            this.lastWateringTime = this.formatTimeString(new Date());
+            this.showCustomNotification('Eau démarrée automatiquement', 'success');
             this.cdr.markForCheck();
           },
           error: (error) => {
-            console.error('Erreur lors de la distribution:', error);
+            console.error('[startWaterSystem] Erreur lors de l\'envoi de START_WATER:', error);
+            this.showCustomNotification('Erreur démarrage automatique de l\'eau', 'error');
           }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
-  }
-
-  updateWaterSupply(feedingId: string) {
-    if (this.waterSupplyForm.valid) {
-      const waterSupply = this.waterSupplyForm.value;
-      
-      const subscription = this.alimentationService.updateWaterSupply(feedingId, waterSupply)
-        .subscribe({
-          next: () => {
-            this.reloadData();
-            this.waterSupplyForm.reset();
-            this.cdr.markForCheck();
-          },
-          error: (error) => {
-            console.error('Erreur lors de la mise à jour de l\'apport en eau:', error);
-          }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
-  }
-
-  markNotificationAsRead(notificationId: string) {
-    const subscription = this.alimentationService.markNotificationAsRead(notificationId)
-      .subscribe({
-        next: () => {
-          this.loadUnreadNotifications();
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Erreur lors du marquage de la notification:', error);
-        }
+        })
+      );
+    } else {
+      console.log('[startWaterSystem] Aucun programme actif ou système déjà actif:', {
+        activeWaterProgram: !!activeWaterProgram,
+        isWaterSystemActive: this.isWaterSystemActive
       });
-    
-    this.subscriptions.add(subscription);
+    }
+  
+    this.waterInterval = setInterval(() => {
+      console.log('[startWaterSystem] Intervalle de vérification lancé');
+      const activeWaterProgram = this.getActiveWaterProgram();
+      console.log('[startWaterSystem] Programme d\'eau actif dans l\'intervalle:', activeWaterProgram);
+  
+      if (!activeWaterProgram || !activeWaterProgram._id) {
+        console.log('[startWaterSystem] Aucun programme actif ou ID manquant, arrêt du système');
+        this.stopWaterSystem();
+        return;
+      }
+  
+      const currentQuantity = typeof activeWaterProgram.quantity === 'number' ? 
+        activeWaterProgram.quantity : parseFloat(activeWaterProgram.quantity as any) || 0;
+      console.log('[startWaterSystem] Quantité actuelle:', currentQuantity);
+  
+      if (currentQuantity > 0) {
+        const decrementAmount = 0.5;
+        const newQuantity = Math.max(0, currentQuantity - decrementAmount);
+        console.log('[startWaterSystem] Décrémentation - Quantité avant:', currentQuantity, 'Quantité après:', newQuantity);
+  
+        this.alimentationService.decrementFeedingQuantity(activeWaterProgram._id, decrementAmount)
+          .subscribe({
+            next: (updatedFeeding) => {
+              console.log('[startWaterSystem] Quantité décrémentée avec succès:', updatedFeeding);
+              activeWaterProgram.quantity = typeof updatedFeeding.quantity === 'number' ? 
+                updatedFeeding.quantity : parseFloat(updatedFeeding.quantity as any) || 0;
+  
+              if (activeWaterProgram.stockId) {
+                this.alimentationService.updateStockQuantity(activeWaterProgram.stockId, decrementAmount)
+                  .subscribe({
+                    next: () => {
+                      console.log('[startWaterSystem] Stock mis à jour avec succès');
+                      this.dailyWaterConsumption += decrementAmount;
+                      this.dailyDistributions++;
+                      this.updateTankLevels();
+                      this.cdr.detectChanges();
+  
+                      if (newQuantity <= 0) {
+                        console.log('[startWaterSystem] Quantité épuisée, arrêt du système');
+                        this.stopWaterSystem();
+                      }
+                    },
+                    error: (error) => {
+                      console.error('[startWaterSystem] Erreur lors de la mise à jour du stock d\'eau:', error);
+                      this.stopWaterSystem();
+                    }
+                  });
+              } else {
+                console.log('[startWaterSystem] Pas de stockId, mise à jour des jauges uniquement');
+                this.updateTankLevels();
+                this.cdr.detectChanges();
+              }
+            },
+            error: (error) => {
+              console.error('[startWaterSystem] Erreur lors de la décrémentation de l\'eau:', error);
+              this.stopWaterSystem();
+            }
+          });
+      } else {
+        console.log('[startWaterSystem] Quantité <= 0, arrêt du système');
+        this.stopWaterSystem();
+      }
+    }, 3000);
   }
 
-  addToBulkFeedings() {
-    if (this.feedingForm.valid) {
-      const feeding: Feeding = {
-        ...this.feedingForm.value,
-        reminderSent: false
+
+  showCustomNotification(message: string, type: 'success' | 'error' | 'info') {
+    this.notificationMessage = message;
+    this.notificationType = type;
+    this.showNotificationBar = true;
+    setTimeout(() => this.showNotificationBar = false, 3000);
+  }
+
+  stopWaterSystem() {
+    if (this.waterInterval) {
+      clearInterval(this.waterInterval);
+      this.waterInterval = null;
+    }
+    this.isWaterSystemActive = false;
+    this.cdr.markForCheck();
+  }
+
+  updateProgram(program: FeedingProgram) {
+    if (program._id) {
+      this.subscriptions.add(
+        this.alimentationService.updateFeeding(program._id, program).subscribe({
+          next: () => {
+            this.reloadData();
+            this.selectedProgram = null;
+            this.updateTankLevels();
+            this.cdr.markForCheck();
+          },
+          error: (error) => console.error('Erreur lors de la mise à jour du programme:', error)
+        })
+      );
+    }
+  }
+
+  updateWaterProgram(program: FeedingProgram) {
+    if (program._id) {
+      const updatedWaterSupply = {
+        startTime: program.programStartTime,
+        endTime: program.programEndTime,
+        enabled: program.automaticFeeding
       };
-      
-      this.bulkFeedings.push(feeding);
-      this.feedingForm.reset();
+
+      this.subscriptions.add(
+        this.alimentationService.updateWaterSupply(program._id, updatedWaterSupply).subscribe({
+          next: () => {
+            this.loadFeedingPrograms();
+            this.updateTankLevels();
+            this.cdr.markForCheck();
+          },
+          error: (error) => console.error('Erreur lors de la mise à jour du programme d\'eau:', error)
+        })
+      );
+    }
+  }
+
+  deleteProgram(index: number) {
+    const program = this.feedingPrograms[index];
+    if (program._id && confirm('Êtes-vous sûr de vouloir supprimer ce programme ?')) {
+      this.subscriptions.add(
+        this.alimentationService.deleteFeeding(program._id).subscribe({
+          next: () => {
+            this.reloadData();
+            this.cdr.markForCheck();
+          },
+          error: (error) => console.error('Erreur lors de la suppression du programme:', error)
+        })
+      );
+    }
+  }
+
+  deleteWaterProgram(index: number) {
+    const program = this.waterPrograms[index];
+    if (program && confirm('Voulez-vous vraiment supprimer ce programme d\'arrosage ?')) {
+      this.waterPrograms.splice(index, 1);
       this.cdr.markForCheck();
     }
   }
 
-  submitBulkFeedings() {
-    if (this.bulkFeedings.length > 0) {
-      const subscription = this.alimentationService.bulkAddFeedings(this.bulkFeedings)
-        .subscribe({
-          next: () => {
-            this.reloadData();
-            this.bulkFeedings = [];
-            this.bulkFeedingMode = false;
-            this.cdr.markForCheck();
-          },
-          error: (error) => {
-            console.error('Erreur lors de l\'ajout des alimentations en masse:', error);
-          }
-        });
-      
-      this.subscriptions.add(subscription);
-    }
+  initDailyStats() {
+    const now = new Date();
+    const night = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+    const msToMidnight = night.getTime() - now.getTime();
+
+    this.resetDailyStats();
+
+    setTimeout(() => {
+      this.resetDailyStats();
+      setInterval(() => this.resetDailyStats(), 24 * 60 * 60 * 1000);
+    }, msToMidnight);
   }
 
-  removeBulkFeeding(index: number) {
-    this.bulkFeedings.splice(index, 1);
+  resetDailyStats() {
+    this.dailyFoodConsumption = 0;
+    this.dailyWaterConsumption = 0;
+    this.dailyDistributions = 0;
     this.cdr.markForCheck();
   }
 
-  toggleBulkMode() {
-    this.bulkFeedingMode = !this.bulkFeedingMode;
-    if (!this.bulkFeedingMode) {
-      this.bulkFeedings = [];
-    }
-    this.cdr.markForCheck();
-  }
-
-  checkFeedingReminders() {
-    const subscription = this.alimentationService.checkFeedingReminders()
-      .subscribe({
-        next: () => {
-          this.loadUnreadNotifications();
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Erreur lors de la vérification des rappels:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
-  }
-
-  startFeedingReminderCronJobs() {
-    const subscription = this.alimentationService.startFeedingReminderCronJobs()
-      .subscribe({
-        next: () => {
-          console.log('Tâches cron démarrées avec succès');
-          this.cdr.markForCheck();
-        },
-        error: (error) => {
-          console.error('Erreur lors du démarrage des tâches cron:', error);
-        }
-      });
-    
-    this.subscriptions.add(subscription);
+  canActivateSystems(): boolean {
+    return this.feedingPrograms && this.feedingPrograms.length > 0;
   }
 
   calculateAutonomy(stock: number | undefined): number {
-    if (stock === undefined) {
-      return 0;
-    }
-    
-    // Calculer l'autonomie basée sur la consommation quotidienne moyenne
+    if (stock === undefined) return 0;
     const averageDailyConsumption = this.calculateAverageDailyConsumption();
     return averageDailyConsumption > 0 ? Math.floor(stock / averageDailyConsumption) : 0;
   }
 
   calculateAverageDailyConsumption(): number {
-    if (this.feedingStats.length === 0) {
-      return 0;
-    }
-    
-    // Calculer la consommation moyenne quotidienne
+    if (this.feedingStats.length === 0) return 0;
     const totalQuantity = this.feedingStats.reduce((sum, stat) => sum + stat.totalQuantity, 0);
     const daysInRange = this.getDaysInRange();
-    
     return daysInRange > 0 ? totalQuantity / daysInRange : 0;
   }
 
   getDaysInRange(): number {
     const start = new Date(this.startDate);
     const end = new Date(this.endDate);
-    
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
@@ -884,52 +614,24 @@ canActivateSystems(): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Filtrer les alimentations d'aujourd'hui
     const todayFeedings = this.feedingHistory.filter(feeding => {
       const feedingDate = new Date(feeding.createdAt!);
       feedingDate.setHours(0, 0, 0, 0);
       return feedingDate.getTime() === today.getTime();
     });
     
-    // Calculer la consommation quotidienne
     this.dailyFoodConsumption = todayFeedings.reduce((sum, feeding) => {
-      if (feeding.feedType !== 'eau') {
-        return sum + feeding.quantity;
-      }
+      if (feeding.feedType !== 'Eau') return sum + feeding.quantity;
       return sum;
     }, 0);
     
     this.dailyWaterConsumption = todayFeedings.reduce((sum, feeding) => {
-      if (feeding.feedType === 'eau') {
-        return sum + feeding.quantity;
-      }
+      if (feeding.feedType === 'Eau') return sum + feeding.quantity;
       return sum;
     }, 0);
     
     this.dailyDistributions = todayFeedings.length;
     
-    this.cdr.markForCheck();
-  }
-
-  editProgram(program: FeedingProgram) {
-    this.selectedProgram = { ...program };
-    this.cdr.markForCheck();
-  }
-
-  cancelEdit() {
-    this.selectedProgram = null;
-    this.cdr.markForCheck();
-  }
-
-  saveEdit() {
-    if (this.selectedProgram) {
-      this.updateProgram(this.selectedProgram);
-    }
-  }
-
-  updateDateRange() {
-    this.loadFeedingHistory();
-    this.loadFeedingStats();
     this.cdr.markForCheck();
   }
 
@@ -946,53 +648,149 @@ canActivateSystems(): boolean {
 
   updateNextFeedingTime() {
     const now = new Date();
-  
     const nextProgram = this.feedingPrograms.find(program => {
       const [hours, minutes] = program.programStartTime.split(':');
       const programTime = new Date();
       programTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       return programTime > now;
     });
-  
-    if (nextProgram) {
-      this.nextFeedingTime = nextProgram.programStartTime;
-    } else {
-      this.nextFeedingTime = '--:--';
-    }
+    this.nextFeedingTime = nextProgram ? nextProgram.programStartTime : '--:--';
     this.cdr.markForCheck();
   }
 
-  // Modifier la méthode updateTankLevels pour refléter les quantités réelles
   private updateTankLevels() {
     if (!this.feedingPrograms || this.feedingPrograms.length === 0) {
       this.foodTankLevel = 0;
       this.waterTankLevel = 0;
+      this.foodTotal = 0;
+      this.waterTotal = 0;
+      this.programGauges.clear();
       this.cdr.markForCheck();
       return;
     }
   
-    // Définir des capacités maximales pour les réservoirs
-    const maxFoodCapacity = 100; // Ajustez cette valeur selon vos besoins réels
-    const maxWaterCapacity = 100; // Ajustez cette valeur selon vos besoins réels
+    const maxFoodCapacity = 100;
+    const maxWaterCapacity = 100;
   
-    // Calculer les totaux actuels en tenant compte des types dynamiques
-    const totals = this.feedingPrograms.reduce((acc, program) => {
-      // Convertir en nombre si c'est une chaîne ou un autre type
-      const quantity = typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0;
-      
-      if (program.feedType === 'eau') {
-        acc.water += quantity;
+    this.foodTotal = this.feedingPrograms
+      .filter(program => program.feedType !== 'Eau')
+      .reduce((acc, program) => acc + (typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0), 0);
+
+    this.waterTotal = this.feedingPrograms
+      .filter(program => program.feedType === 'Eau')
+      .reduce((acc, program) => acc + (typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0), 0);
+  
+    this.foodTankLevel = Math.min(100, Math.max(0, (this.foodTotal / maxFoodCapacity) * 100));
+    this.waterTankLevel = Math.min(100, Math.max(0, (this.waterTotal / maxWaterCapacity) * 100));
+
+    console.log('Total nourriture :', this.foodTotal, '-> Jauge nourriture :', this.foodTankLevel);
+    console.log('Total eau :', this.waterTotal, '-> Jauge eau :', this.waterTankLevel);
+
+    this.programGauges.clear();
+    this.feedingPrograms.forEach(program => {
+      if (!program._id) return;
+      const initialQuantity = program.feedType === 'Eau' ? 
+        this.initialWaterQuantity : this.initialFoodQuantity;
+      if (initialQuantity > 0) {
+        const currentQuantity = typeof program.quantity === 'number' ? 
+          program.quantity : parseFloat(program.quantity as any) || 0;
+        const percentRemaining = Math.min(100, Math.max(0, (currentQuantity / initialQuantity) * 100));
+        this.programGauges.set(program._id, percentRemaining);
       } else {
-        acc.food += quantity;
+        this.programGauges.set(program._id, 0);
       }
-      return acc;
-    }, { food: 0, water: 0 });
-  
-    // Calculer les pourcentages par rapport aux capacités maximales
-    this.foodTankLevel = Math.min(100, Math.max(0, (totals.food / maxFoodCapacity) * 100));
-    this.waterTankLevel = Math.min(100, Math.max(0, (totals.water / maxWaterCapacity) * 100));
+    });
   
     this.cdr.markForCheck();
+  }
+
+  private updateConsumedFood() {
+    const remainingFood = this.feedingPrograms
+      .filter(program => program.feedType !== 'Eau')
+      .reduce((total, program) => total + program.quantity, 0);
+    this.dailyFoodConsumption = this.initialFoodQuantity - remainingFood;
+    this.cdr.markForCheck();
+  }
+
+  private checkCompletedPrograms() {
+    const now = new Date();
+    const currentTimeString = this.formatTimeString(now);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let completedDistributions = 0;
+
+    this.feedingPrograms.forEach(program => {
+      if (program.programEndTime && program.programEndTime < currentTimeString && program._id) {
+        const programDate = new Date();
+        const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+        programDate.setHours(endHours, endMinutes, 0, 0);
+
+        if (programDate.getFullYear() === today.getFullYear() &&
+            programDate.getMonth() === today.getMonth() &&
+            programDate.getDate() === today.getDate()) {
+          if (program.feedType === 'Eau') {
+            this.dailyWaterConsumption += program.quantity;
+          } else {
+            this.dailyFoodConsumption += program.quantity;
+          }
+          completedDistributions++;
+        }
+
+        this.alimentationService.deleteFeeding(program._id).subscribe({
+          next: () => {
+            console.log(`Programme ${program._id} terminé et supprimé`);
+            this.loadFeedingPrograms();
+          },
+          error: (error) => console.error('Erreur lors de la suppression du programme terminé:', error)
+        });
+      }
+    });
+
+    this.dailyDistributions = completedDistributions;
+    this.cdr.markForCheck();
+  }
+
+  private formatTimeString(date: Date): string {
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }
+
+  private getActiveProgram(): FeedingProgram | undefined {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    return this.feedingPrograms.find(program => {
+      if (!program.programStartTime || !program.programEndTime) return false;
+      const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
+      const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+      const startTime = startHours * 60 + startMinutes;
+      const endTime = endHours * 60 + endMinutes;
+      const quantity = typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0;
+      return program.feedType !== 'Eau' && quantity > 0 && currentTime >= startTime && currentTime <= endTime;
+    });
+  }
+
+  private getActiveWaterProgram(): FeedingProgram | undefined {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    return this.feedingPrograms.find(program => {
+      if (!program.programStartTime || !program.programEndTime) return false;
+      const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
+      const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+      const startTime = startHours * 60 + startMinutes;
+      const endTime = endHours * 60 + endMinutes;
+      const quantity = typeof program.quantity === 'number' ? program.quantity : parseFloat(program.quantity as any) || 0;
+      return program.feedType === 'Eau' && quantity > 0 && currentTime >= startTime && currentTime <= endTime;
+    });
+  }
+
+  private isWithinTimeRange(program: FeedingProgram): boolean {
+    if (!program.programStartTime || !program.programEndTime) return false;
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const [startHours, startMinutes] = program.programStartTime.split(':').map(Number);
+    const [endHours, endMinutes] = program.programEndTime.split(':').map(Number);
+    const startTime = startHours * 60 + startMinutes;
+    const endTime = endHours * 60 + endMinutes;
+    return currentTime >= startTime && currentTime <= endTime;
   }
 
   trackByFn(index: number, item: any): any {
@@ -1013,6 +811,5 @@ canActivateSystems(): boolean {
     this.loadStockAlerts();
     this.loadFeedingPrograms();
     this.loadAvailableStocks();
-    this.updateFeedingStatus();
   }
 }

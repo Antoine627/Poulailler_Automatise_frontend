@@ -5,21 +5,43 @@
       <span *ngIf="isLoading" class="loading-indicator">(en cours...)</span>
     </h3>
     <div class="action-icons">
+      <!-- Icône de rafraîchissement pour les types autres que "light" -->
       <fa-icon *ngIf="type !== 'light'" [icon]="faSync"
-              class="refresh-icon"
-              [class.spinning]="isRefreshing"
-              (click)="refreshData()"
-              [title]="lastRefresh ? 'Dernière mise à jour: ' + (lastRefresh | date:'HH:mm:ss') : 'Rafraîchir'">
+               class="refresh-icon"
+               [class.spinning]="isRefreshing"
+               (click)="refreshData()"
+               [title]="lastRefresh ? 'Dernière mise à jour: ' + (lastRefresh | date:'HH:mm:ss') : 'Rafraîchir'">
       </fa-icon>
-      <fa-icon *ngIf="type === 'light'" [icon]="faPlus"
-              class="clock-icon"
-              (click)="openModal()"
-              title="Planifier">
-      </fa-icon>
+
+      <!-- Icônes pour la lumière -->
+      <ng-container *ngIf="type === 'light'">
+        <!-- Icône "Plus" pour ajouter une programmation (affichée uniquement si lightSchedule est null) -->
+        <fa-icon *ngIf="!lightSchedule" [icon]="faPlus"
+                 class="clock-icon"
+                 (click)="openModal()"
+                 title="Ajouter une programmation">
+        </fa-icon>
+
+        <!-- Icône "Edit" pour modifier une programmation (affichée uniquement si lightSchedule existe) -->
+        <fa-icon *ngIf="lightSchedule" [icon]="faEdit"
+                 class="edit-icon"
+                 (click)="openModal(lightSchedule)"
+                 title="Modifier la programmation">
+        </fa-icon>
+
+        <!-- Icône "Trash" pour supprimer une programmation (affichée uniquement si lightSchedule existe) -->
+        <fa-icon *ngIf="lightSchedule" [icon]="faTrash"
+                 class="delete-icon"
+                 (click)="deleteLightSchedule()"
+                 title="Supprimer la programmation">
+        </fa-icon>
+      </ng-container>
+
+      <!-- Icône "Clock" pour les types autres que "light" -->
       <fa-icon *ngIf="type !== 'light'" [icon]="faClock"
-              class="clock-icon"
-              (click)="openModal()"
-              title="Planifier">
+               class="clock-icon"
+               (click)="openModal()"
+               title="Planifier">
       </fa-icon>
     </div>
   </div>
@@ -34,12 +56,12 @@
         <div *ngIf="requiresStock && initialValue > 0" class="stock-level-container">
           <div class="stock-level-bar">
             <div class="stock-level-fill"
-                [style.width.%]="getStockPercentage()"
-                [ngClass]="{
-                  'level-critical': getStockPercentage() < 20,
-                  'level-warning': getStockPercentage() >= 20 && getStockPercentage() < 50,
-                  'level-good': getStockPercentage() >= 50
-                }">
+                 [style.width.%]="getStockPercentage()"
+                 [ngClass]="{
+                   'level-critical': getStockPercentage() < 20,
+                   'level-warning': getStockPercentage() >= 20 && getStockPercentage() < 50,
+                   'level-good': getStockPercentage() >= 50
+                 }">
             </div>
           </div>
         </div>
@@ -48,9 +70,9 @@
       <!-- Section de l'icône - on ne l'affiche que si ce n'est pas une lumière -->
       <div class="icon-section" *ngIf="type !== 'light'">
         <img [src]="getImageUrl()"
-            [class.disabled]="requiresStock && currentValue <= 0"
-            alt="{{type}} icon"
-            class="control-icon"/>
+             [class.disabled]="requiresStock && currentValue <= 0"
+             alt="{{type}} icon"
+             class="control-icon"/>
       </div>
 
       <!-- Section de programmation pour la lumière -->

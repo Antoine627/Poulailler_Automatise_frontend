@@ -2,7 +2,7 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { faClock, faSync, faExclamationTriangle, faEdit, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faSync, faExclamationTriangle, faEdit, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { StockService } from '../../services/stock.service';
 import { Subscription, timer, interval } from 'rxjs';
 import { switchMap, catchError, finalize, tap } from 'rxjs/operators';
@@ -65,8 +65,10 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   faExclamationTriangle = faExclamationTriangle;
   faEdit = faEdit;
   faPlus = faPlus;
+  faTrash = faTrash;
 
   lightSchedule: LightSchedule | null = null;
+  activeDays: string[] = [];
   
   // États
   isLoading: boolean = false;
@@ -80,7 +82,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit() {
     this.updateCurrentValue();
     console.log(`Init ${this.title} - type: ${this.type}, value: ${this.value}, unit: ${this.unit}, currentValue: ${this.currentValue}, stockId: ${this.stockId}`);
-    
+
     if (!this.stockId && this.requiresStock) {
       this.loadStockIdByType();
     } else if (this.stockId && this.requiresStock) {
@@ -90,20 +92,51 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
     if (this.type === 'light') {
       this.loadLightSchedule();
+      this.loadLightPreferences();
     }
   }
 
 
   loadLightSchedule() {
-    // Vous devrez implémenter cette méthode pour récupérer la programmation depuis le backend
-    // Pour l'instant, nous utilisons une programmation factice
-    // this.environmentalService.getLightSchedule(this.location).subscribe(schedule => {
-    //   this.lightSchedule = schedule;
-    // });
-    
-    // Programmation factice pour l'exemple
-    // À remplacer par l'appel API réel
-    this.lightSchedule = null; // Commencez sans programmation
+    this.environmentalService.getLightSchedule().subscribe(
+      (schedule) => {
+        this.lightSchedule = schedule; // Mettre à jour la variable lightSchedule
+      },
+      (error) => {
+        console.error('Erreur lors du chargement du programme de lumière:', error);
+      }
+    );
+  }
+
+
+  loadLightPreferences() {
+    this.environmentalService.getLightPreferences(this.location).subscribe(days => {
+      this.activeDays = days;
+      console.log('Préférences de jour chargées:', this.activeDays);
+    }, error => {
+      console.error('Erreur lors du chargement des préférences de jour:', error);
+    });
+  }
+
+
+  updateLightPreferences(activeDays: string[]) {
+    this.environmentalService.updateLightPreferences(this.location, activeDays).subscribe(() => {
+      this.activeDays = activeDays;
+      this.showNotification('Préférences de jour mises à jour', 'success');
+    }, error => {
+      console.error('Erreur lors de la mise à jour des préférences de jour:', error);
+      this.showNotification('Erreur lors de la mise à jour des préférences de jour', 'error');
+    });
+  }
+
+  deleteLightSchedule() {
+    this.environmentalService.deleteLightSchedule().subscribe(() => {
+      this.lightSchedule = null; // Réinitialiser lightSchedule
+      this.showNotification('Programmation de l\'éclairage supprimée', 'success');
+    }, error => {
+      console.error('Erreur lors de la suppression de la programmation de l\'éclairage:', error);
+      this.showNotification('Erreur lors de la suppression de la programmation de l\'éclairage', 'error');
+    });
   }
 
   private loadStockIdByType() {
@@ -389,9 +422,9 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
-  openModal() {
+  openModal(lightSchedule?: LightSchedule) {
     if (this.type === 'light') {
-      this.openLightScheduleModal();
+      this.openLightScheduleModal(lightSchedule);
     } else {
       // Logique existante pour les autres types
     }
@@ -399,14 +432,14 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
 
   // Méthode pour ouvrir le modal de programmation de lumière
-  openLightScheduleModal() {
+  openLightScheduleModal(lightSchedule?: LightSchedule | undefined) {
     const modalRef = this.modalService.open(LightScheduleModalComponent, {
       size: 'lg', // Taille de la modale
       backdrop: 'static' // Empêche la fermeture de la modale en cliquant en dehors
     });
   
     modalRef.componentInstance.title = 'Programmer l\'éclairage';
-    modalRef.componentInstance.lightSchedule = this.lightSchedule;
+    modalRef.componentInstance.lightSchedule = lightSchedule || this.lightSchedule;
   
     modalRef.result.then((result: any) => {
       if (result) {
@@ -423,22 +456,51 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
   
+    // Vérifier que les heures sont valides
+    if (!this.validateTimeFormat(schedule.startTime) || !this.validateTimeFormat(schedule.endTime)) {
+      this.errorMessage = 'Format d\'heure invalide (HH:MM requis)';
+      this.isLoading = false;
+      return;
+    }
+  
+    // Vérifier que l'heure de fin est postérieure à l'heure de début
+    if (schedule.startTime >= schedule.endTime) {
+      this.errorMessage = 'L\'heure de fin doit être postérieure à l\'heure de début';
+      this.isLoading = false;
+      return;
+    }
+  
+    // Envoyer les données au backend
     this.environmentalService.scheduleLightingControl(
       schedule.startTime,
       schedule.endTime,
       schedule.enabled
     ).subscribe({
       next: (response) => {
-        this.lightSchedule = schedule;
+        this.lightSchedule = schedule; // Mettre à jour lightSchedule
         this.isLoading = false;
         console.log('Programmation enregistrée avec succès:', response);
-        // Afficher un message de succès si nécessaire
+        this.showNotification('Programmation enregistrée avec succès', 'success');
       },
       error: (error) => {
         console.error('Erreur lors de la programmation de l\'éclairage:', error);
         this.errorMessage = error.error?.error || 'Erreur lors de la programmation de l\'éclairage';
         this.isLoading = false;
+        this.showNotification(this.errorMessage, 'error');
       }
     });
+  }
+  
+  
+  // Fonction pour valider le format des heures (HH:MM)
+  validateTimeFormat(time: string): boolean {
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    return timeRegex.test(time);
+  }
+  
+  // Fonction pour afficher des notifications
+  showNotification(message: string, type: 'success' | 'error' | 'info') {
+    // Implémentez cette fonction pour afficher des notifications à l'utilisateur
+    console.log(`${type.toUpperCase()}: ${message}`);
   }
 }

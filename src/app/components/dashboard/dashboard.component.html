@@ -4,33 +4,34 @@
         <app-header></app-header>
         <div class="dashboard-container">
           <div class="environment-section">
-            <app-environment-card 
-              title="Temperature" 
-              icon="thermometer" 
-              value="6" 
-              unit="C">
+            <app-environment-card
+              title="Temperature"
+              icon="thermometer"
+              [value]="temperatureValue"
+              >
             </app-environment-card>
-            
-            <app-environment-card 
-              title="Humidite" 
-              icon="droplet" 
-              value="67.57" 
-              unit="%">
+
+            <app-environment-card
+              title="Humidity"
+              icon="droplet"
+              [value]="humidityValue"
+              >
             </app-environment-card>
-            
-            <app-environment-card 
-              title="Luminosite" 
-              icon="sun" 
-              value="52" 
-              unit="Lux">
+
+            <app-environment-card
+              title="Light"
+              icon="sun"
+              [value]="lightValue"
+              >
             </app-environment-card>
-            
-            <app-environment-card 
-              title="Lampe" 
-              icon="fan" 
+
+            <app-environment-card
+              title="Lampe"
+              icon="fan"
               [hasControls]="true"
-              [isActive]="false">
+              [isActive]="isLampActive">
             </app-environment-card>
+
           </div>
           
           <app-control-panel></app-control-panel>

@@ -20,7 +20,7 @@ export interface Feeding {
   programEndTime?: string;
   stockId?: string;
   createdAt?: Date;
-  reminderSent?: boolean; // Ajout du champ reminderSent
+  reminderSent?: boolean;
 }
 
 export interface ConsumptionStats {
@@ -51,13 +51,13 @@ export interface Notification {
   createdAt: Date;
 }
 
-
 @Injectable({
   providedIn: 'root',
 })
 export class AlimentationService {
   private readonly apiUrl = 'http://localhost:3000/api/feedings';
   private readonly stockApiUrl = 'http://localhost:3000/api/stocks';
+  // private readonly arduinoApiUrl = 'http://localhost:3000/api/arduino'; // Nouvelle base URL pour les appels Arduino
   private readonly notificationsUrl = 'http://localhost:3000/api/notifications';
 
   constructor(private http: HttpClient) {}
@@ -73,8 +73,6 @@ export class AlimentationService {
   // Ajouter une alimentation
   addFeeding(feeding: Feeding): Observable<Feeding> {
     const headers = this.getHeaders();
-  
-    // Envoyer uniquement les champs attendus par le backend
     const requestBody = {
       quantity: feeding.quantity,
       feedType: feeding.feedType,
@@ -83,12 +81,11 @@ export class AlimentationService {
       notes: feeding.notes,
       automaticFeeding: feeding.automaticFeeding,
       stockId: feeding.stockId,
-      reminderSent: false // Initialiser reminderSent à false pour les nouvelles alimentations
+      reminderSent: false
     };
-  
+
     return this.http.post<Feeding>(this.apiUrl, requestBody, { headers }).pipe(
       switchMap(addedFeeding => {
-        // Décrémenter le stock localement après une réponse réussie
         if (feeding.stockId && feeding.quantity) {
           return this.updateStockQuantity(feeding.stockId, feeding.quantity).pipe(
             map(() => addedFeeding)
@@ -168,8 +165,7 @@ export class AlimentationService {
     );
   }
 
-
-  // Add this new method to AlimentationService
+  // Obtenir les programmes d'alimentation avec leurs stocks associés
   getFeedingProgramWithStock(): Observable<Feeding[]> {
     const headers = this.getHeaders();
     return this.http.get<Feeding[]>(`${this.apiUrl}/with-stock`, { headers }).pipe(
@@ -178,31 +174,29 @@ export class AlimentationService {
     );
   }
 
-    // Modify the decrementFeedingQuantity method to also update stock
-    decrementFeedingQuantity(id: string, amount: number = 1): Observable<Feeding> {
-      const headers = this.getHeaders();
-      return this.http.patch<Feeding>(`${this.apiUrl}/${id}/decrement`, { amount }, { headers }).pipe(
-        switchMap(feeding => {
-          if (feeding.stockId) {
-            // Update stock quantity
-            return this.updateStockQuantity(feeding.stockId, amount).pipe(
-              map(() => feeding)
-            );
-          }
-          return of(feeding);
-        }),
-        catchError(this.handleError)
-      );
-    }
+  // Décrémenter la quantité d'une alimentation
+  decrementFeedingQuantity(id: string, amount: number = 1): Observable<Feeding> {
+    const headers = this.getHeaders();
+    return this.http.patch<Feeding>(`${this.apiUrl}/${id}/decrement`, { amount }, { headers }).pipe(
+      switchMap(feeding => {
+        if (feeding.stockId) {
+          return this.updateStockQuantity(feeding.stockId, amount).pipe(
+            map(() => feeding)
+          );
+        }
+        return of(feeding);
+      }),
+      catchError(this.handleError)
+    );
+  }
 
-  
-
-    getConsumptionStats(): Observable<ConsumptionStats[]> {
-      const headers = this.getHeaders();
-      return this.http.get<ConsumptionStats[]>(`${this.apiUrl}/consumption-stats`, { headers }).pipe(
-        catchError(this.handleError)
-      );
-    }
+  // Obtenir les statistiques de consommation
+  getConsumptionStats(): Observable<ConsumptionStats[]> {
+    const headers = this.getHeaders();
+    return this.http.get<ConsumptionStats[]>(`${this.apiUrl}/consumption-stats`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
 
   // Obtenir les alertes de stock bas
   getAlertLowStock(): Observable<StockAlert[]> {
@@ -272,6 +266,23 @@ export class AlimentationService {
   markNotificationAsRead(id: string): Observable<any> {
     const headers = this.getHeaders();
     return this.http.put<any>(`${this.notificationsUrl}/${id}/read`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Nouvelle fonction : Envoyer les programmes à l'Arduino
+  sendProgramsToArduino(): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.post<any>(`${this.apiUrl}/arduino/programs`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Nouvelle fonction : Envoyer une commande manuelle à l'Arduino
+  sendManualCommandToArduino(command: string): Observable<any> {
+    const headers = this.getHeaders();
+    const body = { command };
+    return this.http.post<any>(`${this.apiUrl}/arduino/command`, body, { headers }).pipe(
       catchError(this.handleError)
     );
   }

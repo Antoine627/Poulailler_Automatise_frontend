@@ -19,5 +19,8 @@ import { FeedingScheduleComponent } from '../feeding-schedule/feeding-schedule.c
   styleUrls: ['./dashboard.component.css'] // Lien vers le fichier CSS
 })
 export class DashboardComponent {
-  
+  temperatureValue = 'N/A';
+  humidityValue = 'N/A';
+  lightValue = 'N/A';
+  isLampActive = false;
 }

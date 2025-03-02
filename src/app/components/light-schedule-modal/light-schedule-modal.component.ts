@@ -3,11 +3,13 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { EnvironmentalService } from '../../services/environmental.service';
 
 interface LightSchedule {
   startTime: string;
   endTime: string;
   enabled: boolean;
+  activeDays?: string[]; // Ajout des jours actifs
 }
 
 @Component({
@@ -20,40 +22,94 @@ interface LightSchedule {
 export class LightScheduleModalComponent implements OnInit {
   @Input() title: string = 'Programmer l\'éclairage';
   @Input() lightSchedule: LightSchedule | null = null;
+  @Input() location: string = '';
 
   scheduleForm: FormGroup;
+  notifications: Notification[] = [];
 
-  constructor(public activeModal: NgbActiveModal, private fb: FormBuilder) {
+  activeDays: string[] = [];
+
+  showNotificationBar = false;
+  notificationMessage = '';
+  notificationType = '';
+
+  constructor(public activeModal: NgbActiveModal, private fb: FormBuilder, private environmentalService: EnvironmentalService) {
     this.scheduleForm = this.fb.group({
       startTime: ['08:00', [Validators.required, Validators.pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)]],
       endTime: ['20:00', [Validators.required, Validators.pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)]],
-      enabled: [true]
-    }, { validators: this.timeValidator }); // Ajoutez la validation personnalisée ici
+      enabled: [true],
+      Lundi: [true],
+      Mardi: [true],
+      Mercredi: [true],
+      Jeudi: [true],
+      Vendredi: [true],
+      Samedi: [true],
+      Dimanche: [true]
+    }, { validators: this.timeValidator });
   }
 
   ngOnInit() {
     if (this.lightSchedule) {
       this.scheduleForm.patchValue(this.lightSchedule);
+      if (this.lightSchedule.activeDays) {
+        this.lightSchedule.activeDays.forEach(day => {
+          this.scheduleForm.get(day)?.setValue(true);
+        });
+      }
     }
+  }
+
+  showNotification(message: string, type: 'success' | 'error' | 'info') {
+    this.notificationMessage = message;
+    this.notificationType = type;
+    this.showNotificationBar = true;
+
+    setTimeout(() => {
+      this.showNotificationBar = false;
+    }, 3000);
   }
 
   save() {
     if (this.scheduleForm.valid) {
-      this.activeModal.close(this.scheduleForm.value);
+      const schedule = this.scheduleForm.value;
+      schedule.activeDays = Object.keys(schedule).filter(day => schedule[day] === true && ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].includes(day));
+      this.activeModal.close(schedule);
     } else {
       console.error('Formulaire invalide');
+      this.showNotification('Veuillez corriger les erreurs dans le formulaire', 'error');
     }
   }
 
-  // Validation personnalisée pour vérifier que l'heure de fin >= heure de début
+
+  toggleDay(day: string) {
+    if (this.activeDays.includes(day)) {
+      this.activeDays = this.activeDays.filter(d => d !== day);
+    } else {
+      this.activeDays.push(day);
+    }
+    this.updateLightPreferences(this.activeDays);
+  }
+
+
+  updateLightPreferences(activeDays: string[]) {
+    this.environmentalService.updateLightPreferences(this.location, activeDays).subscribe(() => {
+      this.activeDays = activeDays;
+      this.showNotification('Préférences de jour mises à jour', 'success');
+    }, error => {
+      console.error('Erreur lors de la mise à jour des préférences de jour:', error);
+      this.showNotification('Erreur lors de la mise à jour des préférences de jour', 'error');
+    });
+  }
+  
+
   timeValidator(control: AbstractControl): ValidationErrors | null {
     const startTime = control.get('startTime')?.value;
     const endTime = control.get('endTime')?.value;
 
     if (startTime && endTime && startTime >= endTime) {
-      return { timeError: true }; // Retourne une erreur si l'heure de fin est <= heure de début
+      return { timeError: true };
     }
-    return null; // Pas d'erreur
+    return null;
   }
 
   get startTime() { return this.scheduleForm.get('startTime'); }

@@ -301,3 +301,22 @@ th {
   margin-left: auto;
   font-size: 1rem; /* Ajustez la taille de la police si nécessaire */
 }
+
+
+.gauge-details {
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+.gauge-details p {
+  margin: 5px 0;
+  color: #555;
+}
+
+
+.manual-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}

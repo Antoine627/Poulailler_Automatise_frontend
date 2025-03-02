@@ -4,6 +4,16 @@ import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service'; // Importez AuthService pour récupérer le token
 
+
+export interface LightSchedule {
+  startTime: string;
+  endTime: string;
+  enabled: boolean;
+  // intensity?: number; // Facultatif, si vous utilisez l'intensité
+  activeDays?: string[]; // Ajout des jours actifs
+}
+
+
 @Injectable({
   providedIn: 'root',
 })
@@ -162,6 +172,55 @@ scheduleLightingControl(
 
   return this.http.post<any>(`${this.apiUrl}/schedule/lighting`, body, { headers: this.getHeader() }).pipe(
     catchError(this.handleError<any>('scheduleLightingControl'))
+  );
+}
+
+
+ /**
+ * Récupère la programmation de la lampe en fonction de l'emplacement.
+ * @param location - L'emplacement de la lampe.
+ * @returns Observable<LightSchedule> - La programmation de la lampe.
+ */
+getLightSchedule(): Observable<LightSchedule> {
+  return this.http.get<LightSchedule>(`${this.apiUrl}/light-schedule`, { headers: this.getHeader() }).pipe(
+    catchError(this.handleError<LightSchedule>('getLightSchedule'))
+  );
+}
+
+
+/**
+ * Récupère les préférences de jour pour une lampe spécifique.
+ * @param lampId - L'identifiant de la lampe.
+ * @returns Observable<string[]> - Les jours actifs pour la lampe.
+ */
+getLightPreferences(lampId: string): Observable<string[]> {
+  return this.http.get<string[]>(`${this.apiUrl}/light-preferences`, { headers: this.getHeader() }).pipe(
+    catchError(this.handleError<string[]>('getLightPreferences'))
+  );
+}
+
+
+/**
+ * Met à jour les préférences de jour pour une lampe spécifique.
+ * @param lampId - L'identifiant de la lampe.
+ * @param activeDays - Les jours actifs à mettre à jour.
+ * @returns Observable<any> - La réponse du serveur.
+ */
+updateLightPreferences(lampId: string, activeDays: string[]): Observable<any> {
+  const body = { lampId, activeDays };
+  return this.http.post<any>(`${this.apiUrl}/light-preferences`, body, { headers: this.getHeader() }).pipe(
+    catchError(this.handleError<any>('updateLightPreferences'))
+  );
+}
+
+
+/**
+   * Supprime la programmation de la lampe.
+   * @returns Observable<any> - La réponse du serveur.
+   */
+deleteLightSchedule(): Observable<any> {
+  return this.http.delete<any>(`${this.apiUrl}/light-schedule`, { headers: this.getHeader() }).pipe(
+    catchError(this.handleError<any>('deleteLightSchedule'))
   );
 }
 
