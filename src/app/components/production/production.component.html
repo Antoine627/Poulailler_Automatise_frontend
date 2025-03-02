@@ -29,6 +29,7 @@
             <div class="card-content">
               <p class="number">{{ productionStats?.totalProduction || 0 }}</p>
               <p class="subtitle">Mortalité: {{ productionStats?.totalMortality || 0 }}</p>
+              <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
             </div>
           </div>
 
@@ -133,7 +134,7 @@
                 </div>
                
                 <!-- </div> -->
-                <div class="form-group">
+                <!-- <div class="form-group">
                   <label for="numberOfWeeks">Nombre de Semaines</label>
                   <input
                     type="number"
@@ -147,7 +148,22 @@
                   <div *ngIf="(feedCalculation.numberOfWeeks < 4 || feedCalculation.numberOfWeeks > 10) && feedCalculation.numberOfWeeks > 0" class="error">
                     <h4>Le nombre de semaines doit être compris entre 4 et 10.</h4>
                   </div>
-                </div>
+                </div> -->
+                <div class="form-group">
+                  <label for="numberOfWeeks">Nombre de Semaines</label>
+                  <input
+                      type="number"
+                      id="numberOfWeeks"
+                      [(ngModel)]="feedCalculation.numberOfWeeks"
+                      name="numberOfWeeks"
+                      required
+                      min="4"
+                      max="10"
+                  />
+                  <div *ngIf="(feedCalculation.numberOfWeeks < 4 || feedCalculation.numberOfWeeks > 10) && feedCalculation.numberOfWeeks > 0" class="error">
+                      <h4>Le nombre de semaines doit être compris entre 4 et 10.</h4>
+                  </div>
+              </div>
                 <div class="form-group">
                   <label for="demarragePrice">Prix Démarrage (FCFA)</label>
                   <input
@@ -170,7 +186,7 @@
                     (keydown)="preventNegative($event)"
                   />
                 </div>
-                <div class="form-group">
+                <!-- <div class="form-group">
                   <label for="finitionPrice">Prix Finition (FCFA)</label>
                   <input
                     type="number"
@@ -180,7 +196,19 @@
                     required
                     (keydown)="preventNegative($event)"
                   />
-                </div>
+                </div> -->
+                <div class="form-group">
+                  <label for="finitionPrice">Prix Finition (FCFA)</label>
+                  <input
+                      type="number"
+                      id="finitionPrice"
+                      [(ngModel)]="feedPrices['finition']"
+                      name="finitionPrice"
+                      required
+                      (keydown)="preventNegative($event)"
+                      [disabled]="feedCalculation.numberOfWeeks < 9"  
+                  />
+              </div>
                <!--  <button type="submit" class="btn primary">Calculer</button> -->
 
                <button type="submit" class="btn primary" 
@@ -430,48 +458,50 @@
             </div>
           </div>
 
-          <!-- Production Management Section -->
+          <!--  -->
           <div class="card calculation-card">
             <div class="card-header">
-              <h2>Gestion de la Production</h2>
+                <h2>Gestion de la Production</h2>
             </div>
             <div class="card-content">
-              
-              <form (ngSubmit)="isAdding ? addProduction() : updateProduction()" #productionForm="ngForm">
-                <div class="form-group">
-                  <label for="totalProduction">Production Totale</label>
-                  <input
-                    type="number"
-                    id="totalProduction"
-                    [(ngModel)]="productionManagement.totalProduction"
-                    name="totalProduction"
-                    required
-                    (keydown)="preventNegative($event)"
-                  />
+                <form (ngSubmit)="isAdding ? addProduction() : updateProduction()" #productionForm="ngForm">
+                    <div class="form-group">
+                        <label for="totalProduction">Production Totale</label>
+                        <input
+                            type="number"
+                            id="totalProduction"
+                            [(ngModel)]="productionManagement.totalProduction"
+                            name="totalProduction"
+                            required
+                            (keydown)="preventNegative($event)"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label for="deaths">Nombre de Décès</label>
+                        <input
+                            type="number"
+                            id="deaths"
+                            [(ngModel)]="productionManagement.deaths"
+                            name="deaths"
+                            required
+                            [max]="productionManagement.totalProduction" 
+                        />
+                        <div *ngIf="productionManagement.deaths > productionManagement.totalProduction" class="error">
+                            <h4>Le nombre de décès ne peut pas dépasser le nombre total de volailles.</h4>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn primary" 
+                            [disabled]="productionManagement.deaths > productionManagement.totalProduction || productionManagement.totalProduction < 0 || productionManagement.deaths < 0">
+                        {{ isAdding ? 'Ajouter' : 'Modifier' }}
+                    </button>
+                </form>
+                <div *ngIf="productionManagement.updatedProduction !== undefined" class="result">
+                    <h3>Résultat</h3>
+                    <p>Production actuelle : {{ productionManagement.updatedProduction | number:'1.0-0' }}</p>
+                    <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
                 </div>
-                <div class="form-group">
-                  <label for="deaths">Nombre de Décès</label>
-                  <input
-                    type="number"
-                    id="deaths"
-                    [(ngModel)]="productionManagement.deaths"
-                    name="deaths"
-                    required
-                    [max]="productionManagement.totalProduction" 
-                  />
-                  <div *ngIf="productionManagement.deaths > productionManagement.totalProduction" class="error">
-                    <h4>Le nombre de décès ne peut pas dépasser le nombre total de volailles.</h4>
-                  </div>
-                </div>
-                <button type="submit" class="btn primary" [disabled]="productionManagement.deaths > productionManagement.totalProduction">{{ isAdding ? 'Ajouter' : 'Modifier' }}</button>
-              </form>
-              <div *ngIf="productionManagement.updatedProduction !== 0" class="result">
-                <h3>Résultat</h3>
-                <p>Production actuelle : {{ productionManagement.updatedProduction | number:'1.0-0' }}</p>
-                <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
-              </div>
             </div>
-          </div>
+        </div>
         </div>
       </div>
     </div>
