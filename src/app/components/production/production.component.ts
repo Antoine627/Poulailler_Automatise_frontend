@@ -403,7 +403,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
     console.log('Calcul avec:', { chickenCount, numberOfWeeks });
     
     // Taux de mortalité approximatif par semaine (peut être ajusté)
-    const weeklyMortalityRate = 0.005; // 0.5% par semaine
+    const weeklyMortalityRate = 2.5; // 5% par semaine
     
     // Calcul pour chaque phase d'alimentation avec prise en compte du taux de mortalité
     const demarrage = this.calculatePhaseRequirementsWithMortality('demarrage', chickenCount, numberOfWeeks, weeklyMortalityRate);
