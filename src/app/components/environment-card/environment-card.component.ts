@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faThermometerHalf, faTint, faSun, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
-import { EnvironmentalData, EnvironementService } from '../../services/environement.service';
+import { EnvironmentalData, EnvironementService } from '../../services/environement.service'; // Votre service actuel
+import { EnvironmentalService } from '../../services/environmental.service'; // Service mis à jour pour la lampe
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
@@ -29,28 +30,29 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
   faQuestionCircle = faQuestionCircle;
 
   // Chemins des images pour la lampe
-  lightbulbOn = 'assets/images/light.png'; // Chemin vers l'image de la lampe allumée
-  lightbulbOff = 'assets/images/light-off.png'; // Chemin vers l'image de la lampe éteinte
+  lightbulbOn = 'assets/images/light.png';
+  lightbulbOff = 'assets/images/light-off.png';
 
   // Données environnementales
   environmentalData: EnvironmentalData | null = null;
   dataSubscription?: Subscription;
   refreshInterval = 30000; // Actualiser toutes les 30 secondes
+  isLoading: boolean = false; // État de chargement pour les commandes
 
-  constructor(private environementService: EnvironementService) {}
+  constructor(
+    private environementService: EnvironementService, // Service existant pour les données environnementales
+    private environmentalService: EnvironmentalService // Service mis à jour pour la lampe
+  ) {}
 
   ngOnInit(): void {
-    // Charger les données immédiatement
     this.loadEnvironmentalData();
-  
-    // Configurer l'actualisation automatique des données
     this.dataSubscription = interval(this.refreshInterval)
       .pipe(
         switchMap(() => this.environementService.getLatestData())
       )
       .subscribe({
         next: (data) => {
-          console.log('Received Data:', data); // Ajouter un log ici
+          console.log('Received Data:', data);
           this.environmentalData = data;
           this.updateCardValues();
         },
@@ -59,10 +61,8 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
         }
       });
   }
-  
 
   ngOnDestroy(): void {
-    // Nettoyer les abonnements lors de la destruction du composant
     if (this.dataSubscription) {
       this.dataSubscription.unsubscribe();
     }
@@ -71,7 +71,7 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
   loadEnvironmentalData(): void {
     this.environementService.getLatestData().subscribe({
       next: (data) => {
-        console.log('Données reçues depuis l\'API:', data); // Ajouter un log ici
+        console.log('Données reçues depuis l\'API:', data);
         this.environmentalData = data;
         this.updateCardValues();
       },
@@ -83,20 +83,16 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
 
   updateCardValues(): void {
     if (this.environmentalData) {
-      console.log('Données environnementales:', this.environmentalData); // Log des données reçues
-  
       switch (this.title.toLowerCase()) {
         case 'temperature':
           this.value = this.environmentalData.temperature.toFixed(1);
           this.unit = 'C';
           break;
         case 'humidity':
-          console.log('Valeur d\'humidité:', this.environmentalData.humidity); // Log de l'humidité
           this.value = this.environmentalData.humidity.toFixed(1);
           this.unit = '%';
           break;
         case 'light':
-          console.log('Valeur de luminosité:', this.environmentalData.lightPercentage); // Log de la luminosité
           this.value = this.environmentalData.lightPercentage.toFixed(1);
           this.unit = 'Lux';
           break;
@@ -104,11 +100,8 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
           this.value = 'N/A';
           this.unit = '';
       }
-  
-      console.log('Valeurs mises à jour - Valeur:', this.value, 'Unité:', this.unit); // Log des valeurs finales
     }
   }
-  
 
   getIcon(): IconDefinition | string {
     switch (this.icon) {
@@ -118,7 +111,7 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
         return this.faTint;
       case 'sun':
         return this.faSun;
-      case 'lightbulb': // Utiliser l'image de la lampe
+      case 'lightbulb':
         return this.isActive ? this.lightbulbOn : this.lightbulbOff;
       default:
         return this.faQuestionCircle;
@@ -129,9 +122,45 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
     return ['thermometer', 'droplet', 'sun'].includes(this.icon);
   }
 
+  turnOnLamp() {
+    if (this.isLoading || this.isActive) return;
+
+    this.isLoading = true;
+    this.environmentalService.controlLampManually('START').subscribe({
+      next: () => {
+        this.isActive = true;
+        this.isLoading = false;
+        console.log('Lampe allumée');
+      },
+      error: (err) => {
+        this.isLoading = false;
+        console.error('Erreur lors de l\'allumage de la lampe:', err);
+      }
+    });
+  }
+
+  turnOffLamp() {
+    if (this.isLoading || !this.isActive) return;
+
+    this.isLoading = true;
+    this.environmentalService.controlLampManually('STOP').subscribe({
+      next: () => {
+        this.isActive = false;
+        this.isLoading = false;
+        console.log('Lampe éteinte');
+      },
+      error: (err) => {
+        this.isLoading = false;
+        console.error('Erreur lors de l\'extinction de la lampe:', err);
+      }
+    });
+  }
+
   toggleActive() {
-    this.isActive = !this.isActive;
-    // Ici, vous pourriez ajouter un appel à l'API pour modifier l'état du dispositif
-    // Par exemple: this.environementService.toggleLight(this.isActive).subscribe(...);
+    if (this.isActive) {
+      this.turnOffLamp();
+    } else {
+      this.turnOnLamp();
+    }
   }
 }

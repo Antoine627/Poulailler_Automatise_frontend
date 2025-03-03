@@ -5,15 +5,7 @@
       <span *ngIf="isLoading" class="loading-indicator">(en cours...)</span>
     </h3>
     <div class="action-icons">
-      <!-- Icône de rafraîchissement pour les types autres que "light" -->
-      <fa-icon *ngIf="type !== 'light'" [icon]="faSync"
-               class="refresh-icon"
-               [class.spinning]="isRefreshing"
-               (click)="refreshData()"
-               [title]="lastRefresh ? 'Dernière mise à jour: ' + (lastRefresh | date:'HH:mm:ss') : 'Rafraîchir'">
-      </fa-icon>
-
-      <!-- Icônes pour la lumière -->
+      <!-- Icônes spécifiques pour la lumière -->
       <ng-container *ngIf="type === 'light'">
         <!-- Icône "Plus" pour ajouter une programmation (affichée uniquement si lightSchedule est null) -->
         <fa-icon *ngIf="!lightSchedule" [icon]="faPlus"
@@ -48,7 +40,7 @@
 
   <div class="control-body">
     <div class="content-center">
-      <!-- Section des valeurs -->
+      <!-- Section des valeurs pour les types autres que "light" -->
       <div *ngIf="type !== 'light' && (currentValue !== undefined && currentValue !== null)" class="value-section">
         <span class="value">{{currentValue}} {{unit}}</span>
 
@@ -67,7 +59,7 @@
         </div>
       </div>
 
-      <!-- Section de l'icône - on ne l'affiche que si ce n'est pas une lumière -->
+      <!-- Section de l'icône pour les types autres que "light" -->
       <div class="icon-section" *ngIf="type !== 'light'">
         <img [src]="getImageUrl()"
              [class.disabled]="requiresStock && currentValue <= 0"
@@ -83,7 +75,7 @@
             <span class="time-value">{{lightSchedule.startTime}}</span>
           </div>
           <div class="schedule-time">
-            <span class="time-label">Extinction: </span>
+            <span class="time-label">Extinction:</span>
             <span class="time-value">{{lightSchedule.endTime}}</span>
           </div>
         </div>

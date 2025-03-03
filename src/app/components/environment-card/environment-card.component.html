@@ -18,14 +18,15 @@
     <div class="lightbulb-image">
       <img [src]="isActive ? lightbulbOn : lightbulbOff" alt="Lightbulb" class="lightbulb-icon" />
     </div>
-    <!-- Boutons Allumer/Éteindre -->
+    <!-- Boutons Allumer/Éteindre avec commandes manuelles -->
     <div class="buttons">
-      <button class="btn-on" [disabled]="isActive" (click)="toggleActive()">Allumer</button>
-      <button class="btn-off" [disabled]="!isActive" (click)="toggleActive()">Éteindre</button>
+      <button class="btn-on" [disabled]="isActive || isLoading" (click)="turnOnLamp()">Allumer</button>
+      <button class="btn-off" [disabled]="!isActive || isLoading" (click)="turnOffLamp()">Éteindre</button>
     </div>
     <!-- Statut -->
     <div class="status">
       Status <span class="status-indicator" [class.on]="isActive"></span>
+      <span *ngIf="isLoading" class="loading-indicator">(en cours...)</span>
     </div>
   </div>
 </div>

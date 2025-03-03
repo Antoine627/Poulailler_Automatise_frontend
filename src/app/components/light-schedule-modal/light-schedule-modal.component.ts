@@ -92,7 +92,7 @@ export class LightScheduleModalComponent implements OnInit {
 
 
   updateLightPreferences(activeDays: string[]) {
-    this.environmentalService.updateLightPreferences(this.location, activeDays).subscribe(() => {
+    this.environmentalService.updateLightPreferences(activeDays).subscribe(() => {
       this.activeDays = activeDays;
       this.showNotification('Préférences de jour mises à jour', 'success');
     }, error => {
