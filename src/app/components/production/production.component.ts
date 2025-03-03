@@ -109,6 +109,11 @@ export class ProductionComponent implements OnInit {
   editForm: any = null;
   isAdding = true;
 
+ 
+  currentPage: number = 1; // Page actuelle
+  itemsPerPage: number = 5; // Nombre d'éléments par page
+
+
   totalChickCost: number = 0; // Coût total des poussins
 
 
@@ -1118,6 +1123,5 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
 
  
   
-
 
 }
