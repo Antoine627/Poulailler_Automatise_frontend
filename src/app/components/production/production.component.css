@@ -327,6 +327,9 @@ h1 {
 
 .btn.danger {
   background-color: #f44336;
+  width: 50px;
+  height: 30px;
+  justify-content: center;
   color: white;
 }
 
@@ -658,4 +661,57 @@ h1 {
   color: #6c757d; /* Couleur pour les éléments désactivés */
   border-color: #6c757d; /* Bordure pour les éléments désactivés */
   cursor: not-allowed; /* Curseur non autorisé pour les éléments désactivés */
+}
+
+
+.profitability-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px; /* Espacement entre les lignes */
+  gap: 15px;
+}
+
+.form-group {
+  flex: 1; /* Chaque groupe de formulaire occupe une part égale de l'espace */
+  margin-right: 15px; /* Espacement entre les groupes */
+}
+
+.form-group:last-child {
+  margin-right: 5; /* Supprime l'espacement du dernier groupe */
+}
+
+.cost-summary {
+  margin-top: 20px; /* Espacement au-dessus du résumé des coûts */
+}
+
+
+.sales-table {
+  margin-top: 20px; /* Espacement au-dessus du tableau des ventes */
+}
+
+.sales-row-container {
+  display: flex; /* Flexbox pour l'alignement en ligne */
+  align-items: center; /* Aligne verticalement les éléments au centre */
+  justify-content: space-between; /* Espace entre les éléments */
+  margin-bottom: 15px; /* Espacement entre les lignes */
+  gap: 15px;
+}
+
+.form-group {
+  flex: 1; /* Chaque groupe de formulaire occupe une part égale de l'espace */
+  margin-right: 15px; /* Espacement entre les groupes */
+}
+
+.form-group:last-child {
+  margin-right: 0; /* Supprime l'espacement du dernier groupe */
+}
+
+.btn.danger {
+  margin-left: 10px; /* Espacement à gauche du bouton pour le séparer des champs */
 }
