@@ -27,40 +27,40 @@
                       <div class="water-info">
                         <i class="fas fa-tint water-icon"></i>
                         <div class="water-details">
-                          <div class="water-quantity">{{waterQuantity | number:'1.0-0'}} L</div>
-                          <div class="water-label">Quantité disponible</div>
+                          <div class="water-quantity">{{ waterQuantity | number:'1.0-0' }} L</div>
+                          <div class="water-label">Quantité disponible (via capteur)</div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                <!-- Statistiques -->
+                <!-- Statistiques (uniquement pour les aliments) -->
                 <div class="card stats-card">
                     <div class="card-header">
-                        <h2 class="card-title">Aperçu des Stocks</h2>
+                        <h2 class="card-title">Aperçu des Stocks (Aliments)</h2>
                     </div>
                     <div class="card-content">
                         <div class="stats-grid">
                             <div class="stat-item" *ngFor="let stat of stockStats; let i = index" [attr.data-index]="i">
-                                <div class="stat-value">{{stat.totalQuantity | number:'1.0-2'}} {{stat.unit}}</div>
-                                <div class="stat-label">{{stat.type}}</div>
+                                <div class="stat-value">{{ stat.totalQuantity | number:'1.0-2' }} {{ stat.unit }}</div>
+                                <div class="stat-label">{{ stat.type }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Alertes -->
+                <!-- Alertes (inclus l'eau via capteur) -->
                 <div class="card alerts-card" *ngIf="lowStockAlerts.length > 0">
                     <div class="card-header">
-                      <h2 class="card-title">Alertes ({{lowStockAlerts.length}})</h2>
+                      <h2 class="card-title">Alertes ({{ lowStockAlerts.length }})</h2>
                     </div>
                     <div class="card-content">
                       <div class="alerts-list">
                         <ul class="list">
                           <li class="list-item alert-item" *ngFor="let alert of lowStockAlerts; let i = index" [attr.data-index]="i">
                             <i class="fas fa-exclamation-triangle warn"></i>
-                            <div class="list-item-title">{{alert.type}}</div>
-                            <div class="list-item-line">Stock bas: {{alert.currentStock}} {{alert.unit}} (seuil: {{alert.minQuantity}} {{alert.unit}})</div>
+                            <div class="list-item-title">{{ alert.type }}</div>
+                            <div class="list-item-line">Stock bas: {{ alert.currentStock | number:'1.0-2' }} {{ alert.unit }} (seuil: {{ alert.minQuantity | number:'1.0-2' }} {{ alert.unit }})</div>
                           </li>
                         </ul>
                       </div>
@@ -68,12 +68,12 @@
                   </div>
             </div>
 
-            <!-- Formulaire et Tableau de stocks -->
+            <!-- Formulaire et Tableau de stocks (uniquement pour les aliments) -->
             <div class="main-content-container">
-                <!-- Formulaire d'ajout/modification -->
+                <!-- Formulaire d'ajout/modification (uniquement pour les aliments) -->
                 <div class="card form-card">
                     <div class="card-header">
-                        <h2 class="card-title">{{editMode ? 'Modifier le Stock' : 'Ajouter un Nouveau Stock'}}</h2>
+                        <h2 class="card-title">{{ editMode ? 'Modifier le Stock' : 'Ajouter un Nouveau Stock' }}</h2>
                     </div>
                     <div class="card-content">
                         <form [formGroup]="stockForm" (ngSubmit)="onSubmit()">
@@ -82,6 +82,7 @@
                                     <label for="type">Type de produit</label>
                                     <input id="type" formControlName="type" placeholder="Ex: Maïs" class="form-control">
                                     <div class="error" *ngIf="stockForm.get('type')?.hasError('required')">Type requis</div>
+                                    <div class="error" *ngIf="stockForm.get('type')?.value.toLowerCase() === 'eau'">Les stocks d'eau ne sont pas gérés manuellement, utilisez le capteur d'eau</div>
                                 </div>
 
                                 <div class="form-group input-animation">
@@ -107,7 +108,6 @@
                                     <select id="unit" formControlName="unit" class="form-control">
                                         <option value="kg">Kilogrammes (kg)</option>
                                         <option value="g">Grammes (g)</option>
-                                        <option value="l">Litres (L)</option>
                                         <option value="unité">Unités</option>
                                     </select>
                                 </div>
@@ -121,8 +121,8 @@
 
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary button-animation" [disabled]="stockForm.invalid || isLoading">
-                                    <i class="fas fa-{{editMode ? 'save' : 'plus'}}"></i>
-                                    {{editMode ? 'Mettre à jour' : 'Ajouter'}}
+                                    <i class="fas fa-{{ editMode ? 'save' : 'plus' }}"></i>
+                                    {{ editMode ? 'Mettre à jour' : 'Ajouter' }}
                                 </button>
                                 <button type="button" class="btn btn-cancel button-animation cancel-button" (click)="resetForm()" *ngIf="editMode">Annuler</button>
                             </div>
@@ -130,10 +130,10 @@
                     </div>
                 </div>
 
-                <!-- Tableau des stocks -->
+                <!-- Tableau des stocks (uniquement pour les aliments) -->
                 <div class="card table-card">
                     <div class="card-header">
-                        <h2 class="card-title">Inventaire des Stocks</h2>
+                        <h2 class="card-title">Inventaire des Stocks (Aliments)</h2>
                         <div class="table-actions">
                             <div class="form-group search-field input-animation">
                                 <label for="search">Rechercher</label>
@@ -157,13 +157,13 @@
                                 </thead>
                                 <tbody>
                                     <tr *ngFor="let stock of dataSource.data" [attr.data-id]="stock._id">
-                                        <td>{{stock.type}}</td>
-                                        <td>{{stock.quantity | number:'1.0-2'}} {{stock.unit}}</td>
-                                        <td>{{stock.category}}</td>
-                                        <td>{{stock.lastUpdated | date:'dd/MM/yyyy'}}</td>
+                                        <td>{{ stock.type }}</td>
+                                        <td>{{ stock.quantity | number:'1.0-2' }} {{ stock.unit }}</td>
+                                        <td>{{ stock.category }}</td>
+                                        <td>{{ stock.lastUpdated | date:'dd/MM/yyyy' }}</td>
                                         <td>
-                                            <span class="status-badge {{getStatusClass(getStockStatus(stock))}}">
-                                                {{getStockStatus(stock)}}
+                                            <span class="status-badge {{ getStatusClass(getStockStatus(stock)) }}">
+                                                {{ getStockStatus(stock) }}
                                             </span>
                                         </td>
                                         <td class="actions-cell">
@@ -197,12 +197,12 @@
         </div>
 
         <!-- Notification personnalisée -->
-        <div class="custom-notification-bar {{notificationType}}" *ngIf="showNotificationBar">
+        <div class="custom-notification-bar {{ notificationType }}" *ngIf="showNotificationBar">
             <div class="notification-content">
-                <i class="fas fa-{{notificationType === 'success' ? 'check-circle' : 
+                <i class="fas fa-{{ notificationType === 'success' ? 'check-circle' : 
                                 notificationType === 'error' ? 'exclamation-circle' : 
-                                'info-circle'}}"></i>
-                <span>{{notificationMessage}}</span>
+                                'info-circle' }}"></i>
+                <span>{{ notificationMessage }}</span>
             </div>
             <button class="btn btn-icon close-button" (click)="showNotificationBar = false">
                 <i class="fas fa-times"></i>

@@ -3,10 +3,10 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { AlimentationService, Feeding, FeedingStats, StockAlert, Notification } from '../../services/alimentation.service';
+import { AlimentationService, Feeding, FeedingStats, StockAlert, Notification, ConsumptionData, DistributionData } from '../../services/alimentation.service';
 import { FeedingType } from '../../models/alimentation';
 import { HeaderComponent } from '../header/header.component';
-import { filter, Subscription } from 'rxjs';
+import { filter, Subscription, forkJoin } from 'rxjs';
 import { StockService } from '../../services/stock.service';
 import { Stock } from '../../models/stock.model';
 
@@ -226,7 +226,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
 
           this.updateNextFeedingTime();
           this.updateTankLevels();
-          this.updateConsumedFood();
+          this.updateConsumptionStats(); // Nouvelle méthode pour récupérer les stats après chargement
           this.checkCompletedPrograms();
           this.cdr.markForCheck();
         },
@@ -489,7 +489,6 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     }, 3000);
   }
 
-
   showCustomNotification(message: string, type: 'success' | 'error' | 'info') {
     this.notificationMessage = message;
     this.notificationType = type;
@@ -514,6 +513,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
             this.reloadData();
             this.selectedProgram = null;
             this.updateTankLevels();
+            this.updateConsumptionStats(); // Mettre à jour après modification
             this.cdr.markForCheck();
           },
           error: (error) => console.error('Erreur lors de la mise à jour du programme:', error)
@@ -535,6 +535,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
           next: () => {
             this.loadFeedingPrograms();
             this.updateTankLevels();
+            this.updateConsumptionStats(); // Mettre à jour après modification
             this.cdr.markForCheck();
           },
           error: (error) => console.error('Erreur lors de la mise à jour du programme d\'eau:', error)
@@ -550,6 +551,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
         this.alimentationService.deleteFeeding(program._id).subscribe({
           next: () => {
             this.reloadData();
+            this.updateConsumptionStats(); // Mettre à jour après suppression
             this.cdr.markForCheck();
           },
           error: (error) => console.error('Erreur lors de la suppression du programme:', error)
@@ -561,8 +563,23 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   deleteWaterProgram(index: number) {
     const program = this.waterPrograms[index];
     if (program && confirm('Voulez-vous vraiment supprimer ce programme d\'arrosage ?')) {
-      this.waterPrograms.splice(index, 1);
-      this.cdr.markForCheck();
+      if (program._id) {
+        this.subscriptions.add(
+          this.alimentationService.deleteFeeding(program._id).subscribe({
+            next: () => {
+              this.waterPrograms.splice(index, 1);
+              this.loadFeedingPrograms(); // Recharger tous les programmes pour maintenir la cohérence
+              this.updateConsumptionStats(); // Mettre à jour après suppression
+              this.cdr.markForCheck();
+            },
+            error: (error) => console.error('Erreur lors de la suppression du programme d\'eau:', error)
+          })
+        );
+      } else {
+        this.waterPrograms.splice(index, 1);
+        this.updateConsumptionStats(); // Mettre à jour même si pas d'ID (cas local)
+        this.cdr.markForCheck();
+      }
     }
   }
 
@@ -704,12 +721,38 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  private updateConsumedFood() {
-    const remainingFood = this.feedingPrograms
-      .filter(program => program.feedType !== 'Eau')
-      .reduce((total, program) => total + program.quantity, 0);
-    this.dailyFoodConsumption = this.initialFoodQuantity - remainingFood;
-    this.cdr.markForCheck();
+  private updateConsumptionStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Récupérer les quantités consommées et distribuées pour aujourd'hui
+    const params = { startDate: today, endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
+
+    forkJoin([
+      this.alimentationService.getConsumedFood(params),
+      this.alimentationService.getConsumedWater(params),
+      this.alimentationService.getDistributionQuantity(params)
+    ]).subscribe({
+      next: ([foodData, waterData, distributionData]: [ConsumptionData, ConsumptionData, DistributionData[] | DistributionData]) => {
+        this.dailyFoodConsumption = foodData.totalConsumed;
+        this.dailyWaterConsumption = waterData.totalConsumed;
+
+        // Calculer les distributions quotidiennes à partir des données distribuées
+        if (Array.isArray(distributionData)) {
+          this.dailyDistributions = distributionData.reduce((sum, data) => sum + (data.totalDistributed > 0 ? 1 : 0), 0);
+        } else {
+          this.dailyDistributions = distributionData.totalDistributed > 0 ? 1 : 0;
+        }
+
+        this.cdr.markForCheck();
+        console.log('Stats consommées et distribuées mises à jour :', {
+          food: this.dailyFoodConsumption,
+          water: this.dailyWaterConsumption,
+          distributions: this.dailyDistributions
+        });
+      },
+      error: (error: any) => console.error('Erreur lors de la mise à jour des stats de consommation:', error)
+    });
   }
 
   private checkCompletedPrograms() {
@@ -740,6 +783,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
           next: () => {
             console.log(`Programme ${program._id} terminé et supprimé`);
             this.loadFeedingPrograms();
+            this.updateConsumptionStats(); // Mettre à jour après suppression
           },
           error: (error) => console.error('Erreur lors de la suppression du programme terminé:', error)
         });

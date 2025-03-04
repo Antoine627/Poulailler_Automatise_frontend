@@ -7,11 +7,36 @@
   <!-- Contenu principal -->
   <div class="main-content">
     <div class="dashboard-container">
+      <!-- Statistiques quotidiennes (placées en haut) -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fas fa-chart-bar"></i>
+            Statistiques quotidiennes
+          </h2>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-box">
+            <h3>Aliments consommés</h3>
+            <div class="value">{{ dailyFoodConsumption | number:'1.1-1' }} kg</div>
+          </div>
+          <div class="stat-box">
+            <h3>Eau consommée</h3>
+            <div class="value">{{ dailyWaterConsumption | number:'1.1-1' }} L</div>
+          </div>
+          <div class="stat-box">
+            <h3>Distributions passées</h3>
+            <div class="value">{{ dailyDistributions }}</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Alert Banner -->
-      <div class="alert" *ngIf="stockAlerts && stockAlerts.length > 0">
+      <!-- <div class="alert" *ngIf="stockAlerts && stockAlerts.length > 0">
         <i class="fas fa-exclamation-triangle"></i>
         <span>Attention : Niveau d'aliments bas ! Stock restant pour {{ calculateAutonomy(stockAlerts[0].currentStock) }} jours.</span>
-      </div>
+      </div> -->
 
       <!-- Message d'information -->
       <div class="info-message" *ngIf="!canActivateSystems()">
@@ -87,7 +112,7 @@
           <div class="programs-container">
             <h3>Programmes d'alimentation</h3>
             <div *ngIf="hasFoodPrograms; else noPrograms">
-              <div class="program-item" *ngFor="let program of feedingPrograms; let i = index">
+              <div class="program-item" *ngFor="let program of feedingPrograms; let i = index; trackBy: trackByFn">
                 <ng-container *ngIf="program.feedType !== 'Eau'">
                   <div class="schedule-input">
                     <div class="input-group">
@@ -212,30 +237,6 @@
             <ng-template #noWaterPrograms>
               <p class="no-data">Aucun programme d'arrosage enregistré.</p>
             </ng-template>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">
-              <i class="fas fa-chart-bar"></i>
-              Statistiques quotidiennes
-            </h2>
-          </div>
-
-          <div class="stat-grid">
-            <div class="stat-box">
-              <h3>Aliments consommés</h3>
-              <div class="value">{{ dailyFoodConsumption | number:'1.1-1' }} kg</div>
-            </div>
-            <div class="stat-box">
-              <h3>Eau consommée</h3>
-              <div class="value">{{ dailyWaterConsumption | number:'1.1-1' }} L</div>
-            </div>
-            <div class="stat-box">
-              <h3>Distributions passées</h3>
-              <div class="value">{{ dailyDistributions }}</div>
-            </div>
           </div>
         </div>
       </div>

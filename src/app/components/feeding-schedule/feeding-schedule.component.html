@@ -66,7 +66,7 @@
             </div>
           </div>
           <div class="program-details">
-            <p>Quantité : {{ program.quantity }} {{ getStockUnit(program.stockId) }}</p>
+            <p>Quantité : {{ program.quantity }} L</p>
             <p *ngIf="program.automaticFeeding">Automatique : Oui</p>
             <p *ngIf="!program.automaticFeeding">Manuel</p>
           </div>
@@ -256,36 +256,20 @@
                 #quantity="ngModel"
                 min="0"
                 (ngModelChange)="onQuantityChange()"
-                [ngClass]="{'is-invalid': isStockInsufficient}"
+                [ngClass]="{'is-invalid': isWaterQuantityInsufficient}"
               >
-              <div class="stock-info" *ngIf="currentStockQuantity !== null">
-                <p [ngClass]="{'text-danger': isStockInsufficient, 'text-success': !isStockInsufficient}">
-                  Reste en stock : {{ currentStockQuantity - newQuantity }} {{ currentStockUnit }}
+              <div class="stock-info">
+                <p>Quantité mesurée par le capteur d’eau : {{ waterQuantity }} L</p>
+                <p [ngClass]="{'text-danger': isWaterQuantityInsufficient, 'text-success': !isWaterQuantityInsufficient}">
+                  Reste disponible : {{ waterQuantity - newQuantity }} L
                 </p>
               </div>
               <div *ngIf="quantity.invalid && (quantity.dirty || quantity.touched)" class="alert alert-danger">
                 <div *ngIf="quantity.errors?.['required']">La quantité est requise</div>
+                <div *ngIf="quantity.errors?.['min']">La quantité ne peut pas être négative</div>
               </div>
-              <div *ngIf="isStockInsufficient" class="alert alert-danger">
-                Quantité insuffisante en stock
-              </div>
-            </div>
-
-            <div class="form-group col-6">
-              <label>Stock *</label>
-              <select
-                class="form-control"
-                [(ngModel)]="newStockId"
-                name="stockId"
-                required
-                (change)="onStockChange()"
-              >
-                <option [ngValue]="''" disabled>Sélectionnez un stock</option>
-                <option *ngFor="let stock of filteredEauStocks" [ngValue]="stock._id">{{ stock.type }}</option>
-              </select>
-              <div *ngIf="feedingForm.controls['stockId']?.invalid && (feedingForm.controls['stockId']?.dirty || feedingForm.controls['stockId']?.touched)" 
-                   class="alert alert-danger">
-                <div *ngIf="feedingForm.controls['stockId']?.errors?.['required']">La sélection d'un stock est requise</div>
+              <div *ngIf="isWaterQuantityInsufficient" class="alert alert-danger">
+                Quantité demandée supérieure à la quantité disponible mesurée par le capteur
               </div>
             </div>
           </div>
@@ -366,7 +350,7 @@
           <button
             type="submit"
             class="btn btn-primary"
-            [disabled]="!feedingForm.form.valid || isStockInsufficient || (newAutomaticFeeding && (timeErrors.startTime || timeErrors.endTime))"
+            [disabled]="!feedingForm.form.valid || isWaterQuantityInsufficient || (newAutomaticFeeding && (timeErrors.startTime || timeErrors.endTime))"
           >
             {{ editIndex !== null ? 'Modifier' : 'Enregistrer' }}
           </button>

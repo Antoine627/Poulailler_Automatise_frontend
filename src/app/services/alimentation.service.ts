@@ -51,13 +51,25 @@ export interface Notification {
   createdAt: Date;
 }
 
+
+export interface ConsumptionData {
+  feedType: string;
+  totalConsumed: number;
+  unit: string;
+}
+
+export interface DistributionData {
+  feedType: string;
+  totalDistributed: number;
+  unit: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class AlimentationService {
   private readonly apiUrl = 'http://localhost:3000/api/feedings';
   private readonly stockApiUrl = 'http://localhost:3000/api/stocks';
-  // private readonly arduinoApiUrl = 'http://localhost:3000/api/arduino'; // Nouvelle base URL pour les appels Arduino
   private readonly notificationsUrl = 'http://localhost:3000/api/notifications';
 
   constructor(private http: HttpClient) {}
@@ -141,6 +153,22 @@ export class AlimentationService {
   deleteFeeding(id: string): Observable<Feeding> {
     const headers = this.getHeaders();
     return this.http.delete<Feeding>(`${this.apiUrl}/${id}`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Arrêter immédiatement la pompe à eau
+  stopWaterImmediate(): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.post<any>(`${this.apiUrl}/stop-water-immediate`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+
+  stopFeedingImmediate(): Observable<any> {
+    const headers = this.getHeaders();
+    return this.http.post<any>(`${this.apiUrl}/stop-feeding-immediate`, {}, { headers }).pipe(
       catchError(this.handleError)
     );
   }
@@ -270,7 +298,7 @@ export class AlimentationService {
     );
   }
 
-  // Nouvelle fonction : Envoyer les programmes à l'Arduino
+  // Envoyer les programmes à l'Arduino
   sendProgramsToArduino(): Observable<any> {
     const headers = this.getHeaders();
     return this.http.post<any>(`${this.apiUrl}/arduino/programs`, {}, { headers }).pipe(
@@ -278,11 +306,66 @@ export class AlimentationService {
     );
   }
 
-  // Nouvelle fonction : Envoyer une commande manuelle à l'Arduino
+  // Envoyer une commande manuelle à l'Arduino
   sendManualCommandToArduino(command: string): Observable<any> {
     const headers = this.getHeaders();
     const body = { command };
     return this.http.post<any>(`${this.apiUrl}/arduino/command`, body, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+
+  // Récupérer la quantité d'aliments consommés
+  getConsumedFood(params: { startDate?: Date; endDate?: Date } = {}): Observable<ConsumptionData> {
+    const headers = this.getHeaders();
+    let httpParams = new HttpParams();
+
+    if (params.startDate) {
+      httpParams = httpParams.set('startDate', params.startDate.toISOString().split('T')[0]);
+    }
+    if (params.endDate) {
+      httpParams = httpParams.set('endDate', params.endDate.toISOString().split('T')[0]);
+    }
+
+    return this.http.get<ConsumptionData>(`${this.apiUrl}/consumed/food`, { headers, params: httpParams }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Récupérer la quantité d'eau consommée
+  getConsumedWater(params: { startDate?: Date; endDate?: Date } = {}): Observable<ConsumptionData> {
+    const headers = this.getHeaders();
+    let httpParams = new HttpParams();
+
+    if (params.startDate) {
+      httpParams = httpParams.set('startDate', params.startDate.toISOString().split('T')[0]);
+    }
+    if (params.endDate) {
+      httpParams = httpParams.set('endDate', params.endDate.toISOString().split('T')[0]);
+    }
+
+    return this.http.get<ConsumptionData>(`${this.apiUrl}/consumed/water`, { headers, params: httpParams }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Récupérer la quantité distribuée
+  getDistributionQuantity(params: { feedType?: string; startDate?: Date; endDate?: Date } = {}): Observable<DistributionData[] | DistributionData> {
+    const headers = this.getHeaders();
+    let httpParams = new HttpParams();
+
+    if (params.feedType) {
+      httpParams = httpParams.set('feedType', params.feedType);
+    }
+    if (params.startDate) {
+      httpParams = httpParams.set('startDate', params.startDate.toISOString().split('T')[0]);
+    }
+    if (params.endDate) {
+      httpParams = httpParams.set('endDate', params.endDate.toISOString().split('T')[0]);
+    }
+
+    return this.http.get<DistributionData[] | DistributionData>(`${this.apiUrl}/distribution`, { headers, params: httpParams }).pipe(
       catchError(this.handleError)
     );
   }

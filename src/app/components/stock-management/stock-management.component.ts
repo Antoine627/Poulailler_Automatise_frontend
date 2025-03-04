@@ -9,8 +9,8 @@ import { MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { Stock, StockStats, LowStockAlert } from './../../models/stock.model';
 import { StockService } from '../../services/stock.service';
-import { StockDetailDialogComponent } from './../stock-detail-dialog/stock-detail-dialog.component';
-import { ConfirmDialogComponent } from './../confirm-dialog/confirm-dialog.component';
+import { StockDetailDialogComponent } from '../stock-detail-dialog/stock-detail-dialog.component';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { HeaderComponent } from '../header/header.component';
 
@@ -35,14 +35,13 @@ export class StockManagementComponent implements OnInit {
   stockStats: StockStats[] = [];
   lowStockAlerts: LowStockAlert[] = []; 
   isLoading = false;
-  // lowStockAlerts: Stock[] = [];
-  chartData: any[] = [];
   editMode = false;
   currentStockId: string | null = null;
   showNotificationBar = false;
   notificationMessage = '';
   notificationType = '';
-  waterQuantity: number = 100;
+  waterQuantity: number = 0; // Niveau d'eau via capteur
+  chartData: any[] = []; // Déclaration explicite de chartData
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -106,21 +105,12 @@ export class StockManagementComponent implements OnInit {
       container.classList.add('loading-animation');
     }
   
-    // Charger les stocks
+    // Charger les stocks (uniquement pour les aliments)
     this.stockService.getAllStocks().subscribe({
       next: (stocks) => {
-        this.dataSource.data = stocks;
+        console.log('[StockManagementComponent] All stocks loaded:', stocks);
+        this.dataSource.data = stocks.filter(stock => stock.type.toLowerCase() !== 'eau');
         this.prepareChartData(stocks);
-  
-        // Récupérer le stock d'eau
-        const waterStock = stocks.find(stock => stock.type === 'eau');
-        if (waterStock) {
-          this.waterQuantity = waterStock.quantity; // Assigner la quantité d'eau
-        } else {
-          this.waterQuantity = 0; // Valeur par défaut si aucun stock d'eau n'est trouvé
-          this.showCustomNotification('Aucun stock d\'eau trouvé', 'info');
-        }
-  
         this.isLoading = false;
         if (container) {
           container.classList.remove('loading-animation');
@@ -129,6 +119,7 @@ export class StockManagementComponent implements OnInit {
         this.cdr.markForCheck();
       },
       error: (error) => {
+        console.error('[StockManagementComponent] Error loading stocks:', error);
         this.showCustomNotification('Erreur lors du chargement des stocks', 'error');
         this.isLoading = false;
         if (container) {
@@ -137,29 +128,49 @@ export class StockManagementComponent implements OnInit {
       }
     });
   
-    // Charger les alertes de stock bas
+    // Charger les alertes de stock bas (incluant l'eau via capteur)
     this.stockService.getAlertLowStock().subscribe({
-      next: (alerts: LowStockAlert[]) => { // Typer la réponse comme LowStockAlert[]
-        this.lowStockAlerts = alerts.filter(alert => alert.currentStock < alert.minQuantity);
+      next: (alerts: LowStockAlert[]) => {
+        console.log('[StockManagementComponent] Low stock alerts loaded:', alerts);
+        this.lowStockAlerts = alerts;
         setTimeout(() => this.animateAlerts(), 100);
         this.cdr.markForCheck();
       },
-      error: (error) => this.showCustomNotification('Erreur lors du chargement des alertes', 'error')
+      error: (error) => {
+        console.error('[StockManagementComponent] Error loading alerts:', error);
+        this.showCustomNotification('Erreur lors du chargement des alertes', 'error');
+      }
     });
   
-    // Charger les statistiques
+    // Charger les statistiques (uniquement pour les aliments)
     this.stockService.getStockStats().subscribe({
       next: (stats) => {
+        console.log('[StockManagementComponent] Stock stats loaded:', stats);
         this.stockStats = stats;
         setTimeout(() => this.animateStats(), 100);
         this.cdr.markForCheck();
       },
-      error: (error) => this.showCustomNotification('Erreur lors du chargement des statistiques', 'error')
+      error: (error) => {
+        console.error('[StockManagementComponent] Error loading stats:', error);
+        this.showCustomNotification('Erreur lors du chargement des statistiques', 'error');
+      }
+    });
+  
+    // Charger le niveau d'eau via le capteur
+    this.stockService.getWaterTankLevel().subscribe({
+      next: (data) => {
+        console.log('[StockManagementComponent] Water tank level and quantity loaded:', data);
+        this.waterQuantity = data.waterQuantity;
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        console.error('[StockManagementComponent] Error loading water tank level:', error);
+        this.showCustomNotification('Erreur lors du chargement du niveau d\'eau', 'error');
+        this.waterQuantity = 0; // Valeur par défaut en cas d'erreur
+      }
     });
   }
 
-
-  
   animateTableRows() {
     const rows = document.querySelectorAll('.table tbody tr');
     rows.forEach((row, index) => {
@@ -191,9 +202,9 @@ export class StockManagementComponent implements OnInit {
     const categories = [...new Set(stocks.map(stock => stock.category))];
   
     this.chartData = categories
-      .filter(category => category !== 'eau') // Exclure l'eau
+      .filter(category => category.toLowerCase() !== 'eau') // Exclure l'eau
       .map(category => {
-        const categoryStocks = stocks.filter(stock => stock.category === category);
+        const categoryStocks = stocks.filter(stock => stock.category === category && stock.type.toLowerCase() !== 'eau');
         const totalQuantity = categoryStocks.reduce((sum, stock) => sum + stock.quantity, 0);
   
         return {
@@ -235,6 +246,11 @@ export class StockManagementComponent implements OnInit {
       minQuantity: Number(this.stockForm.value.minQuantity)
     };
   
+    if (stockData.type.toLowerCase() === 'eau') {
+      this.showCustomNotification('Les stocks d\'eau ne sont pas gérés manuellement, utilisez le capteur d\'eau.', 'error');
+      return;
+    }
+  
     console.log('Données envoyées:', stockData); // Afficher les données dans la console
   
     this.isLoading = true;
@@ -265,10 +281,13 @@ export class StockManagementComponent implements OnInit {
       });
     }
   }
-  
-  
 
   editStock(stock: Stock) {
+    if (stock.type.toLowerCase() === 'eau') {
+      this.showCustomNotification('Les stocks d\'eau ne peuvent pas être modifiés manuellement, utilisez le capteur d\'eau.', 'error');
+      return;
+    }
+  
     this.editMode = true;
     this.currentStockId = stock._id || null;
     this.stockForm.setValue({
@@ -290,6 +309,11 @@ export class StockManagementComponent implements OnInit {
   }
 
   viewStockDetails(stock: Stock) {
+    if (stock.type.toLowerCase() === 'eau') {
+      this.showCustomNotification('Les détails des stocks d\'eau ne sont pas disponibles manuellement, utilisez le capteur d\'eau.', 'info');
+      return;
+    }
+  
     // Animation avant d'ouvrir la boîte de dialogue
     const row = document.querySelector(`tr[data-id="${stock._id}"]`);
     if (row) {
@@ -310,6 +334,12 @@ export class StockManagementComponent implements OnInit {
   }
 
   deleteStock(stock: Stock) {
+    if (stock.type.toLowerCase() === 'eau') {
+      this.showCustomNotification('Les stocks d\'eau ne peuvent pas être supprimés manuellement, utilisez le capteur d\'eau.', 'error');
+      return;
+    }
+  
+    console.log('Tentative de suppression du stock:', stock);
     const row = document.querySelector(`tr[data-id="${stock._id}"]`);
     if (row) {
       row.classList.add('shake-animation');
@@ -318,11 +348,13 @@ export class StockManagementComponent implements OnInit {
         this.openDeleteDialog(stock);
       }, 300);
     } else {
+      console.warn('Row not found for stock ID:', stock._id);
       this.openDeleteDialog(stock);
     }
   }
   
   openDeleteDialog(stock: Stock) {
+    console.log('Ouvrir dialogue de suppression pour stock:', stock);
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       width: '400px',
       data: {
@@ -335,6 +367,7 @@ export class StockManagementComponent implements OnInit {
   
     dialogRef.afterClosed().subscribe(result => {
       if (result && stock._id) {
+        console.log('Suppression confirmée pour stock ID:', stock._id);
         this.isLoading = true;
         this.stockService.deleteStock(stock._id).subscribe({
           next: () => {
@@ -349,14 +382,16 @@ export class StockManagementComponent implements OnInit {
             } else {
               this.loadAllData();
             }
+            // Restaurer le focus sur un élément interactif après la fermeture
+            const deleteButton = document.querySelector(`button[data-id="${stock._id}"]`) as HTMLElement;
+            if (deleteButton) {
+              deleteButton.focus();
+            }
           },
           error: (error) => {
-            // Gestion spécifique pour un stock non vide
             if (error.status === 409) {
               this.showCustomNotification('Impossible de supprimer le stock car il n\'est pas vide.', 'error');
-            }
-            // Autres cas d'erreur
-            else if (error.status === 400) {
+            } else if (error.status === 400) {
               this.showCustomNotification(error.error.message || 'Données invalides', 'error');
             } else if (error.status === 404) {
               this.showCustomNotification('Le stock que vous essayez de supprimer n\'existe pas.', 'error');
@@ -400,6 +435,9 @@ export class StockManagementComponent implements OnInit {
   }
 
   getStockStatus(stock: Stock): string {
+    if (stock.type.toLowerCase() === 'eau') {
+      return 'normal'; // L'eau n'est pas gérée manuellement, donc pas d'alerte ici
+    }
     if (stock.quantity <= 0) {
       return 'rupture';
     } else if (stock.quantity < stock.minQuantity) {
@@ -419,20 +457,16 @@ export class StockManagementComponent implements OnInit {
   }
 
   showCustomNotification(message: string, type: 'success' | 'error' | 'info') {
-    // Afficher une notification à l'utilisateur
     this.notificationMessage = message;
     this.notificationType = type;
     this.showNotificationBar = true;
   
-    // Fermer automatiquement la notification après 3 secondes
     setTimeout(() => {
       this.showNotificationBar = false;
     }, 3000);
   }
 
-  // On conserve la méthode originale pour compatibilité
   showNotification(message: string, type: 'success' | 'error' | 'info') {
     this.showCustomNotification(message, type);
   }
-  
 }
