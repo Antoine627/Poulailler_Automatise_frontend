@@ -79,6 +79,7 @@
               <h2>Productions</h2>
             </div>
             <div class="card-content">
+              <!--  -->
               <table class="data-table">
                 <thead>
                   <tr>
@@ -89,7 +90,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let prod of productions">
+                  <tr *ngFor="let prod of paginatedProductions">
                     <td>{{ prod.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
                     <td>{{ prod.chickenCount }}</td>
                     <td>{{ prod.mortality }}</td>
@@ -104,11 +105,26 @@
                       </div>
                     </td>
                   </tr>
-                  <tr *ngIf="productions.length === 0">
-                    <td colspan="7" class="no-data">Aucune production enregistrée</td>
+                  <tr *ngIf="paginatedProductions.length === 0">
+                    <td colspan="4" class="no-data">Aucune production enregistrée</td>
                   </tr>
                 </tbody>
               </table>
+
+              <!-- Pagination -->
+              <nav aria-label="Page navigation" class="mt-3">
+                <ul class="pagination justify-content-center">
+                  <li class="page-item" [class.disabled]="currentPage === 1">
+                    <a class="page-link" (click)="changePage(currentPage - 1)" tabindex="-1">Précédent</a>
+                  </li>
+                  <li class="page-item" *ngFor="let page of pageNumbers">
+                    <a class="page-link" [class.active]="page === currentPage" (click)="changePage(page)">{{ page }}</a>
+                  </li>
+                  <li class="page-item" [class.disabled]="currentPage === totalPages">
+                    <a class="page-link" (click)="changePage(currentPage + 1)">Suivant</a>
+                  </li>
+                </ul>
+              </nav>
             </div>
             
           </div>

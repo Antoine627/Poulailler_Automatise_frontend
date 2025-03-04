@@ -628,3 +628,34 @@ h1 {
 .primary:active {
   transform: translateY(0); /* Retour à la position normale lors du clic */
 }
+
+.pagination {
+  display: flex;
+  justify-content: center; /* Centre l'élément de pagination */
+  list-style: none; /* Supprime les puces de la liste */
+  padding: 0; /* Supprime le padding par défaut */
+  margin: 20px 0; /* Ajoute un peu d'espace autour de la pagination */
+}
+
+.pagination .page-item {
+  margin: 0 5px; /* Espacement entre les éléments de pagination */
+}
+
+.pagination .page-link {
+  color: #007bff; /* Couleur du lien */
+  border: 1px solid #007bff; /* Bordure autour des liens */
+  padding: 8px 12px; /* Espacement interne */
+  text-decoration: none; /* Supprime le soulignement */
+  border-radius: 4px; /* Coins arrondis */
+  transition: background-color 0.3s; /* Transition douce pour le survol */
+}
+
+.pagination .page-link:hover {
+  background-color: #f1f1f1; /* Couleur de fond au survol */
+}
+
+.pagination .page-item.disabled .page-link {
+  color: #6c757d; /* Couleur pour les éléments désactivés */
+  border-color: #6c757d; /* Bordure pour les éléments désactivés */
+  cursor: not-allowed; /* Curseur non autorisé pour les éléments désactivés */
+}
