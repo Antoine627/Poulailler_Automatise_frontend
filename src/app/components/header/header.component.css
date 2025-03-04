@@ -24,3 +24,22 @@
     font-size: 0.9rem;
     color: #666;
   }
+
+
+  .temporary-access-form {
+    margin-top: 10px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .btn {
+    margin-top: 10px;
+  }
+
+  .fas.fa-key {
+    margin-left: 15px;
+    font-size: 24px; /* Ajustez la taille de l'icône */
+    color: #007bff; /* Couleur de l'icône */
+  }

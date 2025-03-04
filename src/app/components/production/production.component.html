@@ -29,6 +29,7 @@
             <div class="card-content">
               <p class="number">{{ productionStats?.totalProduction || 0 }}</p>
               <p class="subtitle">Mortalité: {{ productionStats?.totalMortality || 0 }}</p>
+              <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
             </div>
           </div>
 
@@ -59,13 +60,15 @@
           <div class="card">
             <div class="card-header">
               <h3>Résultat</h3>
+              <p>Coût Total : {{ totalFeedCost + totalChickCost + totalOtherCosts | number:'1.0-0' }} FCFA</p>
+             
             </div>
             <div class="card-content">
               <p class="subtitle">
                 {{ (profitabilityCalculation.profit || 0) > 0 ? 'Bénéfice' : 'Perte' }}
               </p>
             </div>
-          </div>
+          </div> 
         </div>
 
         <!-- Vertical Sections -->
@@ -107,6 +110,7 @@
                 </tbody>
               </table>
             </div>
+            
           </div>
 
           <!-- Feed Calculation Section -->
@@ -116,17 +120,22 @@
             </div>
             <div class="card-content">
               <form (ngSubmit)="calculateFeedRequirements()">
+                
                 <div class="form-group">
                   <label for="chickenCount">Nombre de Volailles</label>
                   <input
                     type="number"
                     id="chickenCount"
                     [(ngModel)]="feedCalculation.chickenCount"
+                    (ngModelChange)="onChickenCountChange($event)"
                     name="chickenCount"
                     required
+                    (keydown)="preventNegative($event)"
                   />
                 </div>
-                <div class="form-group">
+               
+                <!-- </div> -->
+                <!-- <div class="form-group">
                   <label for="numberOfWeeks">Nombre de Semaines</label>
                   <input
                     type="number"
@@ -134,8 +143,28 @@
                     [(ngModel)]="feedCalculation.numberOfWeeks"
                     name="numberOfWeeks"
                     required
+                    min="4"
+                    max="10"
                   />
-                </div>
+                  <div *ngIf="(feedCalculation.numberOfWeeks < 4 || feedCalculation.numberOfWeeks > 10) && feedCalculation.numberOfWeeks > 0" class="error">
+                    <h4>Le nombre de semaines doit être compris entre 4 et 10.</h4>
+                  </div>
+                </div> -->
+                <div class="form-group">
+                  <label for="numberOfWeeks">Nombre de Semaines</label>
+                  <input
+                      type="number"
+                      id="numberOfWeeks"
+                      [(ngModel)]="feedCalculation.numberOfWeeks"
+                      name="numberOfWeeks"
+                      required
+                      min="4"
+                      max="10"
+                  />
+                  <div *ngIf="(feedCalculation.numberOfWeeks < 4 || feedCalculation.numberOfWeeks > 10) && feedCalculation.numberOfWeeks > 0" class="error">
+                      <h4>Le nombre de semaines doit être compris entre 4 et 10.</h4>
+                  </div>
+              </div>
                 <div class="form-group">
                   <label for="demarragePrice">Prix Démarrage (FCFA)</label>
                   <input
@@ -144,6 +173,7 @@
                     [(ngModel)]="feedPrices['demarrage']"
                     name="demarragePrice"
                     required
+                    (keydown)="preventNegative($event)"
                   />
                 </div>
                 <div class="form-group">
@@ -154,19 +184,28 @@
                     [(ngModel)]="feedPrices['croissance']"
                     name="croissancePrice"
                     required
+                    (keydown)="preventNegative($event)"
                   />
                 </div>
+               
                 <div class="form-group">
                   <label for="finitionPrice">Prix Finition (FCFA)</label>
                   <input
-                    type="number"
-                    id="finitionPrice"
-                    [(ngModel)]="feedPrices['finition']"
-                    name="finitionPrice"
-                    required
+                      type="number"
+                      id="finitionPrice"
+                      [(ngModel)]="feedPrices['finition']"
+                      name="finitionPrice"
+                      required
+                      (keydown)="preventNegative($event)"
+                      [disabled]="feedCalculation.numberOfWeeks < 9"  
                   />
-                </div>
-                <button type="submit" class="btn primary">Calculer</button>
+              </div>
+               <!--  <button type="submit" class="btn primary">Calculer</button> -->
+
+               <button type="submit" class="btn primary" 
+               [disabled]="!feedCalculation.chickenCount || !feedCalculation.numberOfWeeks || !feedPrices['demarrage'] || !feedPrices['croissance'] || !feedPrices['finition']">
+         Calculer
+       </button>
               </form>
               <!-- Affichage amélioré des résultats de calcul d'alimentation -->
               <div *ngIf="showResults" class="result animate-fade">
@@ -232,12 +271,14 @@
                   <p><strong>Coût d'alimentation par poulet:</strong> {{ feedCalculation.totalCostFCFA / (feedCalculation.survivingChickens || feedCalculation.chickenCount) | number:'1.0-0' }} FCFA</p>
                 </div>
                 <div class="result-actions">
-                  <button class="btn secondary" (click)="exportResultsToCSV()">Exporter les résultats</button>
+                  <!-- <button class="btn secondary" (click)="exportResultsToCSV()">Exporter les résultats</button> -->
                   <button class="btn primary" (click)="showResults = false">Fermer</button>
                 </div>
               </div>
             </div>
           </div>
+
+         
 
           <!-- Nouvelle section de calcul de rentabilité -->
           <div class="card calculation-card">
@@ -245,87 +286,108 @@
               <h2>Calcul de la Rentabilité</h2>
             </div>
             <div class="card-content">
-              <form (ngSubmit)="calculateProfitability()">
-                <!-- Informations de base -->
-                <div class="form-group">
-                  <label for="numberOfChickens">Nombre de Volailles</label>
-                  <input
-                    type="number"
-                    id="numberOfChickens"
-                    [(ngModel)]="profitabilityParams.numberOfChickens"
-                    name="numberOfChickens"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="chickPrice">Prix d'Achat Unitaire (FCFA)</label>
-                  <input
-                    type="number"
-                    id="chickPrice"
-                    [(ngModel)]="profitabilityParams.chickPrice"
-                    name="chickPrice"
-                    step="1"
-                    required
-                  />
-                </div>
-                
-                <!-- Frais -->
-                <div class="form-group">
-                  <label for="feedCost">Coût Alimentation (FCFA)</label>
-                  <input
-                    type="number"
-                    id="feedCost"
-                    [(ngModel)]="profitabilityParams.feedCost"
-                    name="feedCost"
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="otherCosts">Autres Frais (FCFA)</label>
-                  <input
-                    type="number"
-                    id="otherCosts"
-                    [(ngModel)]="profitabilityParams.otherCosts"
-                    name="otherCosts"
-                    required
-                  />
-                </div>
-                
-                <!-- Tableau dynamique pour les ventes -->
-                <div class="form-group">
-                  <label>Ventes</label>
-                  <div class="sales-table">
-                    <div class="sales-row" *ngFor="let sale of profitabilityParams.sales; let i = index">
-                      <div class="form-group">
-                        <label>Nombre de Volailles</label>
-                        <input
-                          type="number"
-                          [(ngModel)]="sale.quantity"
-                          [name]="'saleQuantity' + i"
-                          required
-                        />
-                      </div>
-                      <div class="form-group">
-                        <label>Prix de Vente Unitaire (FCFA)</label>
-                        <input
-                          type="number"
-                          [(ngModel)]="sale.unitPrice"
-                          [name]="'saleUnitPrice' + i"
-                          required
-                        />
-                      </div>
-                      <button class="btn danger" (click)="removeSale(i)" *ngIf="profitabilityParams.sales.length > 1">
-                        <i class="fas fa-trash"></i>
-                      </button>
+             <!--  -->
+             <form (ngSubmit)="calculateProfitability()">
+              <!-- Informations de base -->
+              <div class="form-group">
+                <label for="numberOfChickens">Nombre de Volailles</label>
+                <input
+                  type="number"
+                  id="numberOfChickens"
+                  [(ngModel)]="profitabilityParams.numberOfChickens"
+                  name="numberOfChickens"
+                  required
+                  readonly 
+                  (keydown)="preventNegative($event)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="chickPrice">Prix d'Achat Unitaire (FCFA)</label>
+                <input
+                  type="number"
+                  id="chickPrice"
+                  [(ngModel)]="profitabilityParams.chickPrice"
+                  name="chickPrice"
+                  step="1"
+                  required
+                  (keydown)="preventNegative($event)"
+                  (ngModelChange)="calculateTotalCosts()"  
+                />
+              </div>
+              
+              <!-- Frais -->
+              <div class="form-group">
+                <label for="feedCost">Coût Alimentation (FCFA)</label>
+                <input
+                  type="number"
+                  id="feedCost"
+                  [(ngModel)]="profitabilityParams.feedCost"
+                  name="feedCost"
+                  required
+                  (keydown)="preventNegative($event)"
+                  readonly
+                  (ngModelChange)="calculateTotalCosts()"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="otherCosts">Autres Frais (FCFA)</label>
+                <input
+                  type="number"
+                  id="otherCosts"
+                  [(ngModel)]="profitabilityParams.otherCosts"
+                  name="otherCosts"
+                  required
+                  (keydown)="preventNegative($event)"
+                  (ngModelChange)="calculateTotalCosts()" 
+                />
+              </div>
+            
+              <!-- Résumé des Coûts -->
+              <div class="cost-summary" *ngIf="profitabilityParams.chickPrice > 0 && profitabilityParams.feedCost > 0 && profitabilityParams.otherCosts > 0">
+                <h3>Résumé des Coûts</h3>
+                <p>Coût Total d'Alimentation : {{ totalFeedCost | number:'1.0-0' }} FCFA</p>
+                <p>Coût Total des Poussins : {{ totalChickCost | number:'1.0-0' }} FCFA</p>
+                <p>Frais Divers : {{ totalOtherCosts | number:'1.0-0' }} FCFA</p>
+                <p>Coût Total : {{ totalFeedCost + totalChickCost + totalOtherCosts | number:'1.0-0' }} FCFA</p>
+              </div>
+            
+              <!-- Tableau dynamique pour les ventes -->
+              <div class="form-group">
+                <label>Ventes</label>
+                <div class="sales-table">
+                  <div class="sales-row" *ngFor="let sale of profitabilityParams.sales; let i = index">
+                    <div class="form-group">
+                      <label>Nombre de Volailles</label>
+                      <input
+                        type="number"
+                        [(ngModel)]="sale.quantity"
+                        [name]="'saleQuantity' + i"
+                        required
+                      />
                     </div>
-                    <button class="btn secondary" (click)="addSale()">
-                      <i class="fas fa-plus"></i> Ajouter une vente
+                    <div class="form-group">
+                      <label>Prix de Vente Unitaire (FCFA)</label>
+                      <input
+                        type="number"
+                        [(ngModel)]="sale.unitPrice"
+                        [name]="'saleUnitPrice' + i"
+                        required
+                        (keydown)="preventNegative($event)"
+                      />
+                    </div>
+                    <button class="btn danger" (click)="removeSale(i)" *ngIf="profitabilityParams.sales.length > 1">
+                      <i class="fas fa-trash"></i>
                     </button>
                   </div>
+                  <button class="btn secondary" (click)="addSale()">
+                    <i class="fas fa-plus"></i> Ajouter une vente
+                  </button>
                 </div>
-                
-                <button type="submit" class="btn primary">Calculer</button>
-              </form>
+              </div>
+              
+              <button type="submit" class="btn primary">Calculer</button>
+            </form>
               
               <!-- Résultats du calcul de rentabilité -->
               <div *ngIf="profitabilityResults" class="result animate-fade">
@@ -380,54 +442,76 @@
                 </table>
                 
                 <div class="result-actions">
-                  <button class="btn secondary" (click)="exportProfitabilityToCSV()">Exporter les résultats</button>
+                  <!-- <button class="btn secondary" (click)="exportProfitabilityToCSV()">Exporter les résultats</button> -->
                   <button class="btn primary" (click)="profitabilityResults = null">Fermer</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Production Management Section -->
+          <!--  -->
           <div class="card calculation-card">
             <div class="card-header">
-              <h2>Gestion de la Production</h2>
+                <h2>Gestion de la Production</h2>
             </div>
             <div class="card-content">
-              <form (ngSubmit)="isAdding ? addProduction() : updateProduction()">
-                <div class="form-group">
-                  <label for="totalProduction">Production Totale</label>
-                  <input
-                    type="number"
-                    id="totalProduction"
-                    [(ngModel)]="productionManagement.totalProduction"
-                    name="totalProduction"
-                    required
-                  />
+                <form (ngSubmit)="isAdding ? addProduction() : updateProduction()" #productionForm="ngForm">
+                    <div class="form-group">
+                        <label for="totalProduction">Production Totale</label>
+                        <input
+                            type="number"
+                            id="totalProduction"
+                            [(ngModel)]="productionManagement.totalProduction"
+                            name="totalProduction"
+                            required
+                            (keydown)="preventNegative($event)"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label for="deaths">Nombre de Décès</label>
+                        <input
+                            type="number"
+                            id="deaths"
+                            [(ngModel)]="productionManagement.deaths"
+                            name="deaths"
+                            required
+                            [max]="productionManagement.totalProduction" 
+                        />
+                        <div *ngIf="productionManagement.deaths > productionManagement.totalProduction" class="error">
+                            <h4>Le nombre de décès ne peut pas dépasser le nombre total de volailles.</h4>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn primary" 
+                            [disabled]="productionManagement.deaths > productionManagement.totalProduction || productionManagement.totalProduction < 0 || productionManagement.deaths < 0">
+                        {{ isAdding ? 'Ajouter' : 'Modifier' }}
+                    </button>
+                </form>
+                <div *ngIf="productionManagement.updatedProduction !== undefined" class="result">
+                    <h3>Résultat</h3>
+                    <p>Production actuelle : {{ productionManagement.updatedProduction | number:'1.0-0' }}</p>
+                    <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
                 </div>
-                <div class="form-group">
-                  <label for="deaths">Nombre de Décès</label>
-                  <input
-                    type="number"
-                    id="deaths"
-                    [(ngModel)]="productionManagement.deaths"
-                    name="deaths"
-                    required
-                  />
-                </div>
-                <button type="submit" class="btn primary">{{ isAdding ? 'Ajouter' : 'Modifier' }}</button>
-              </form>
-              <div *ngIf="productionManagement.updatedProduction !== 0" class="result">
-                <h3>Résultat</h3>
-                <p>Production actuelle : {{ productionManagement.updatedProduction | number:'1.0-0' }}</p>
-                <p>Mortalité totale : {{ productionManagement.deaths | number:'1.0-0' }}</p>
-              </div>
             </div>
-          </div>
+        </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+
+<div>
+  <h3>Rentabilité</h3>
+  <p>Revenus Totaux : {{ profitabilityCalculation.totalRevenue | number:'1.0-0' }} FCFA</p>
+  <p>Coûts Totaux : {{ profitabilityCalculation.totalCosts | number:'1.0-0' }} FCFA</p>
+  <p>Profit : {{ profitabilityCalculation.profit | number:'1.0-0' }} FCFA</p>
+  <p>Marge Bénéficiaire : {{ profitabilityCalculation.profitMargin | number:'1.0-2' }} %</p>
+</div>
+
+
+
+
+
 
 
 

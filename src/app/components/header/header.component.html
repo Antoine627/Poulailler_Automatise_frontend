@@ -1,9 +1,46 @@
 <header class="header">
   <h1>{{ pageTitle }}</h1>
   <div class="user-info">
-    <i class="fas fa-user-circle profile-icon"></i> <!-- Utilisez une icône utilisateur -->
+    <i class="fas fa-user-circle profile-icon"></i>
     <span>{{ userName }}</span>
-    <span class="role">{{ userRole }}</span> <!-- Ajoutez le rôle ici -->
+    <span class="role">{{ userRole }}</span>
     <span class="date">{{ currentDate | date:'dd/MM/yyyy' }}</span>
+    
+  </div>
+
+  <!-- Icône de clé pour afficher/masquer le formulaire -->
+  <i class="fas fa-key" (click)="toggleForm()" style="cursor: pointer;"></i>
+
+  <!-- Formulaire caché -->
+  <div *ngIf="isFormVisible" class="temporary-access-form">
+    <form (ngSubmit)="onSubmit()" #codeForm="ngForm">
+      <div class="form-group">
+        <label for="userEmail">Adresse Email</label>
+        <input
+          type="email"
+          id="userEmail"
+          name="userEmail"
+          required
+          [(ngModel)]="userEmail"
+          class="form-control"
+          placeholder="Entrez votre email"
+        />
+      </div>
+      <div class="form-group">
+        <label for="durationHours">Durée (heures)</label>
+        <input
+          type="number"
+          id="durationHours"
+          name="durationHours"
+          [(ngModel)]="durationHours"
+          class="form-control"
+          placeholder="Durée en heures"
+          min="1"
+          value="1"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">Demander un Code Temporaire</button>
+      <p *ngIf="message">{{ message }}</p>
+    </form>
   </div>
 </header>

@@ -302,4 +302,16 @@ updateCode(): Observable<any> {
       });
     }
   }
+
+
+  /**
+ * Connexion avec un code temporaire.
+ * @param code - Le code temporaire de connexion.
+ * @returns Observable<any> - La réponse du serveur.
+ */
+loginWithTemporaryCode(code: string): Observable<any> {
+  return this.http.post(`${this.apiUrl}/login-with-temporary-code`, { code }).pipe(
+      catchError(this.handleError) // Gestion des erreurs
+  );
+}
 }

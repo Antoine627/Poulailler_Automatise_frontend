@@ -264,7 +264,7 @@ export class LoginComponent implements AfterViewInit {
     });
   }
 
-  private onSubmitCode(): void {
+  /* private onSubmitCode(): void {
     if (this.isBlocked || this.codeForm.invalid) return;
     
     const code = Object.values(this.codeForm.value).join('');
@@ -280,6 +280,43 @@ export class LoginComponent implements AfterViewInit {
       },
       error: (err) => this.handleError(err)
     });
+  } */
+
+    private onSubmitCode(): void {
+      if (this.isBlocked || this.codeForm.invalid) return;
+  
+      const code = Object.values(this.codeForm.value).join('');
+      this.errorMessage = '';
+  
+      // Tenter de se connecter avec le code temporaire
+      this.authService.loginWithTemporaryCode(code).subscribe({
+          next: (res) => {
+              // Connexion réussie avec le code temporaire
+              localStorage.setItem('token', res.data.token);
+              localStorage.setItem('lastLoginTime', this.CURRENT_UTC_DATETIME);
+              this.router.navigate(['/dashboard']);
+              this.resetAttempts();
+              this.resetForms();
+          },
+          error: (err) => {
+              // Si le code temporaire échoue, essayer le code normal
+              this.authService.loginWithCode(code).subscribe({
+                  next: (res) => {
+                      // Connexion réussie avec le code standard
+                      localStorage.setItem('token', res.data.token);
+                      localStorage.setItem('lastLoginTime', this.CURRENT_UTC_DATETIME);
+                      this.router.navigate(['/dashboard']);
+                      this.resetAttempts();
+                      this.resetForms();
+                  },
+                  error: (err) => {
+                      // Traitement des erreurs de connexion
+                      this.errorMessage = err.message || 'Erreur de connexion avec le code.';
+                      this.handleError(err);
+                  }
+              });
+          }
+      });
   }
 
   // Code Input Handlers

@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service'; // Importez le service AuthService
+import { HttpClient } from '@angular/common/http'; // Importez HttpClient
+import { FormsModule } from '@angular/forms';
 
-// Définissez l'interface UserInfo
 interface UserInfo {
   username?: string;
   email?: string;
@@ -16,7 +17,7 @@ interface UserInfo {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.css']
 })
@@ -27,7 +28,22 @@ export class HeaderComponent implements OnInit {
   userRole = '';
   userProfilePicture = '';
 
-  // Mapping des routes vers les titres
+
+    // ... autres propriétés
+    isFormVisible: boolean = false; // Contrôle la visibilité du formulaire
+
+    // ... constructeur et autres méthodes
+  
+    toggleForm() {
+      this.isFormVisible = !this.isFormVisible; // Inverse la visibilité
+    }
+    
+  
+  // Propriétés pour le formulaire
+  userEmail: string = '';
+  durationHours: number = 1;
+  message: string = '';
+
   private routeTitles: { [key: string]: string } = {
     '/dashboard': 'Tableau de bord',
     '/user-management': 'Gestion utilisateurs',
@@ -37,24 +53,17 @@ export class HeaderComponent implements OnInit {
     '/historiques': 'Historiques'
   };
 
-  constructor(private router: Router, private authService: AuthService) {
-    // S'abonner aux événements de navigation
+  constructor(private router: Router, private authService: AuthService, private http: HttpClient) {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      // Mettre à jour le titre en fonction de la route active
       this.pageTitle = this.routeTitles[event.url] || 'Tableau de bord';
     });
   }
 
   ngOnInit() {
-    // Initialiser le titre au chargement du composant
     this.pageTitle = this.routeTitles[this.router.url] || 'Tableau de bord';
-
-    // Récupérer les informations de l'utilisateur depuis le localStorage
     this.loadUserInfoFromLocalStorage();
-
-    // Récupérer les informations de l'utilisateur depuis le service si non présentes dans le localStorage
     this.loadUserInfo();
   }
 
@@ -67,10 +76,6 @@ export class HeaderComponent implements OnInit {
       this.userProfilePicture = userInfo.profilePicture
         ? `http://localhost:3000/uploads/profiles/${userInfo.profilePicture}`
         : 'assets/images/default-profile.png';
-
-      console.log('User info loaded from localStorage:', userInfo);
-    } else {
-      console.log('No user info found in localStorage');
     }
   }
 
@@ -79,22 +84,45 @@ export class HeaderComponent implements OnInit {
       if (userInfo) {
         this.userName = userInfo.username || '';
         this.userRole = userInfo.role || '';
-
-        // Vérifier si profilePicture est défini et n'est pas vide
-        if (userInfo.profilePicture) {
-          // Construire l'URL complète vers l'image
-          this.userProfilePicture = `http://localhost:3000/uploads/profiles/${userInfo.profilePicture}`;
-        } else {
-          // Image par défaut si aucune photo n'est disponible
-          this.userProfilePicture = 'assets/images/default-profile.png';
-        }
-
-        // Stocker les informations de l'utilisateur dans le localStorage
+        this.userProfilePicture = userInfo.profilePicture
+          ? `http://localhost:3000/uploads/profiles/${userInfo.profilePicture}`
+          : 'assets/images/default-profile.png';
         localStorage.setItem('userInfo', JSON.stringify(userInfo));
-
-        console.log('User info loaded:', userInfo);
-        console.log('Profile picture URL:', this.userProfilePicture);
       }
     });
   }
+
+  /* onSubmit() {
+    const requestBody = {
+      userEmail: this.userEmail,
+      durationHours: this.durationHours,
+    };
+
+    this.http.post('http://localhost:3000/api/generate-temporary-access-code', requestBody)
+      .subscribe({
+        next: (response: any) => {
+          this.message = 'Code d\'accès temporaire envoyé avec succès!';
+        },
+        error: (error) => {
+          this.message = 'Erreur lors de l\'envoi du code : ' + error.message;
+        }
+      });
+  } */
+
+      onSubmit() {
+        const requestBody = {
+          userEmail: this.userEmail,  // Ajout de l'email
+          durationHours: this.durationHours,
+        };
+      
+        this.http.post('http://localhost:3000/api/auth/generate-temporary-access-code', requestBody)
+          .subscribe({
+            next: (response: any) => {
+              this.message = 'Code d\'accès temporaire envoyé avec succès!';
+            },
+            error: (error) => {
+              this.message = 'Erreur lors de l\'envoi du code : ' + error.message;
+            }
+          });
+      }
 }
