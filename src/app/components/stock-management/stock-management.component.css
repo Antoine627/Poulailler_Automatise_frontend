@@ -238,6 +238,19 @@ app-sidebar {
   font-weight: 500;
 }
 
+
+.status-out {
+  background-color: #d32f2f; /* Rouge pour Indisponible */
+}
+
+.status-low {
+  background-color: #ff9800; /* Orange pour Stock bas */
+}
+
+.status-normal {
+  background-color: #4caf50; /* Vert pour Disponible */
+}
+
 .status-normal {
   background: #dcfce7;
   color: #166534;

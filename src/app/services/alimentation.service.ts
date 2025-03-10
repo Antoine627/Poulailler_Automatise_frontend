@@ -18,6 +18,7 @@ export interface Feeding {
   };
   programStartTime?: string;
   programEndTime?: string;
+  isArchived: boolean;
   stockId?: string;
   createdAt?: Date;
   reminderSent?: boolean;
@@ -149,10 +150,18 @@ export class AlimentationService {
     );
   }
 
-  // Supprimer une alimentation
-  deleteFeeding(id: string): Observable<Feeding> {
+  // Archiver une alimentation
+  archiveFeeding(id: string): Observable<Feeding> {
     const headers = this.getHeaders();
-    return this.http.delete<Feeding>(`${this.apiUrl}/${id}`, { headers }).pipe(
+    return this.http.put<Feeding>(`${this.apiUrl}/${id}/archive`, {}, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Obtenir les programmes archivés
+  getArchivedFeedings(): Observable<Feeding[]> {
+    const headers = this.getHeaders();
+    return this.http.get<Feeding[]>(`${this.apiUrl}/archived`, { headers }).pipe(
       catchError(this.handleError)
     );
   }

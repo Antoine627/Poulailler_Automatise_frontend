@@ -9,14 +9,15 @@ import { EnvironmentalService, LightSchedule } from '../../services/environmenta
 import { LightScheduleModalComponent } from '../light-schedule-modal/light-schedule-modal.component';
 
 enum ControlStatus {
-  IDLE = 'En attente',
-  ACTIVE = 'Actif',
-  ERROR = 'Erreur',
-  LOW_STOCK = 'Stock bas',
-  NO_STOCK = 'Stock épuisé',
-  LOADING = 'Chargement...',
-  NOT_FOUND = 'Stock introuvable'
+  IDLE = 'Disponible',         // Quand le stock est disponible mais inactif
+  ACTIVE = 'Actif',           // Quand le contrôle est actif
+  ERROR = 'Erreur',           // Erreur générale
+  LOW_STOCK = 'Stock bas',    // Stock faible mais non vide
+  NO_STOCK = 'Indisponible',  // Stock vide
+  LOADING = 'Chargement...',  // Pendant le chargement
+  NOT_FOUND = 'Introuvable'   // Stock non trouvé
 }
+
 
 @Component({
   selector: 'app-control-item',
@@ -36,9 +37,11 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   @Input() requiresStock: boolean = false;
   @Input() isToggleable: boolean = true;
   @Input() refreshInterval: number = 30000;
+  private WATER_REFRESH_INTERVAL = 1000;
 
   currentValue: number = 0;
   initialValue: number = 0;
+  isWaterSensorConnected: boolean = false; // État du capteur d’eau
   private decrementInterval: any;
   private refreshSubscription: Subscription | null = null;
   private subscriptions: Subscription[] = [];
@@ -59,6 +62,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   errorMessage: string = '';
   lastRefresh: Date | null = null;
   ControlStatus = ControlStatus;
+  cdr: any;
 
   constructor(
     private stockService: StockService,
@@ -77,6 +81,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
     if (this.type === 'water') {
       this.loadWaterQuantity(); // Charger la quantité d’eau via le capteur
+      this.setupPeriodicRefresh(); // Ajouter le rafraîchissement périodique pour l’eau
     }
 
     if (this.type === 'light') {
@@ -85,7 +90,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['value']) {
+    if (changes['value'] && this.type !== 'water') {
       this.updateCurrentValue();
     }
     if (changes['stockId'] && !changes['stockId'].firstChange && this.type !== 'water') {
@@ -117,7 +122,12 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
   // Supprimer le programme de lumière
   deleteLightSchedule() {
-    this.environmentalService.deleteLightSchedule().subscribe(
+    if (!this.lightSchedule || !this.lightSchedule._id) {
+      this.showNotification('Aucune programmation à supprimer ou ID manquant', 'error');
+      return;
+    }
+  
+    this.environmentalService.deleteLightSchedule(this.lightSchedule._id).subscribe(
       () => {
         this.lightSchedule = null;
         this.showNotification('Programmation de l\'éclairage supprimée', 'success');
@@ -159,34 +169,30 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
-    // Vérifier que startTime et endTime ne sont pas null
     if (!schedule.startTime || !schedule.endTime) {
       this.errorMessage = 'Les heures de début et de fin sont requises';
       this.isLoading = false;
       return;
     }
 
-    // Valider le format des heures
     if (!this.validateTimeFormat(schedule.startTime) || !this.validateTimeFormat(schedule.endTime)) {
       this.errorMessage = 'Format d\'heure invalide (HH:MM requis)';
       this.isLoading = false;
       return;
     }
 
-    // Vérifier que l'heure de fin est postérieure à l'heure de début
     if (schedule.startTime >= schedule.endTime) {
       this.errorMessage = 'L\'heure de fin doit être postérieure à l\'heure de début';
       this.isLoading = false;
       return;
     }
 
-    // Envoyer les données au backend
     this.environmentalService.scheduleLightingControl(
       schedule.startTime,
       schedule.endTime,
       schedule.enabled
     ).subscribe({
-      next: (response) => {
+      next: () => {
         this.lightSchedule = schedule;
         this.isLoading = false;
         this.showNotification('Programmation enregistrée avec succès', 'success');
@@ -210,39 +216,46 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
     // Implémentation réelle de notification si nécessaire
   }
 
-  // Nouvelle méthode pour charger la quantité d’eau via le capteur
+  // Charger la quantité d’eau via le capteur
   private loadWaterQuantity() {
     this.isLoading = true;
     this.errorMessage = '';
     this.stockService.getWaterTankLevel().subscribe({
       next: (data) => {
-        console.log('[ControlItemComponent] Water quantity loaded:', data);
-        this.currentValue = data.waterQuantity;
-        this.initialValue = data.waterQuantity;
-        this.unit = data.unit || 'L'; // Assurer que l’unité est définie (par défaut 'L')
+        console.log('[ControlItemComponent] Raw data received:', data);
+        this.isWaterSensorConnected = data.isWaterSensorConnected;
+        this.currentValue = this.isWaterSensorConnected ? data.waterQuantity : 0;
+        this.initialValue = this.isWaterSensorConnected ? data.waterQuantity : 0;
+        console.log('[ControlItemComponent] Processed - Connected:', this.isWaterSensorConnected, 'Current Value:', this.currentValue);
+        this.unit = data.unit || 'L';
         this.updateStatusForWater();
         this.isLoading = false;
+        this.cdr.markForCheck(); // Forcer la mise à jour de l’interface
       },
       error: (error) => {
         console.error('[ControlItemComponent] Error loading water quantity:', error);
         this.errorMessage = 'Erreur lors du chargement de la quantité d\'eau';
+        this.isWaterSensorConnected = false;
         this.currentValue = 0;
         this.initialValue = 0;
+        this.status = ControlStatus.ERROR;
         this.isLoading = false;
         this.showNotification('Erreur lors du chargement de la quantité d\'eau', 'error');
+        this.cdr.markForCheck();
       }
     });
   }
 
   // Mettre à jour le statut pour l’eau
   private updateStatusForWater() {
-    const WATER_MIN_QUANTITY = 200; // Seuil minimum pour l’eau (à ajuster selon vos besoins)
-    if (this.currentValue <= 0) {
-      this.status = ControlStatus.NO_STOCK;
+    const WATER_MIN_QUANTITY = 200;
+    if (!this.isWaterSensorConnected || this.currentValue <= 0) {
+      this.status = ControlStatus.NO_STOCK; // "Indisponible"
+      this.currentValue = 0;
     } else if (this.currentValue < WATER_MIN_QUANTITY) {
-      this.status = ControlStatus.LOW_STOCK;
+      this.status = ControlStatus.LOW_STOCK; // "Stock bas"
     } else {
-      this.status = this.isActive ? `${ControlStatus.ACTIVE} (${this.currentValue} ${this.unit} restant)` : ControlStatus.IDLE;
+      this.status = this.isActive ? ControlStatus.ACTIVE : ControlStatus.IDLE; // "Actif" ou "Disponible"
     }
   }
 
@@ -257,7 +270,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private loadStockIdByType() {
-    if (this.type === 'water') return; // Pas de stockId pour l’eau, géré via capteur
+    if (this.type === 'water') return; // Pas de stockId pour l’eau
     this.stockService.getStocksByType(this.type).subscribe({
       next: (stocks) => {
         if (stocks && stocks.length > 0) {
@@ -278,7 +291,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private refreshStockData() {
-    if (this.type === 'water') return; // Pas de refresh pour l’eau, géré via capteur
+    if (this.type === 'water') return; // Pas de refresh pour l’eau via stockId
     if (!this.stockId) {
       this.errorMessage = 'Aucun ID de stock fourni';
       this.status = ControlStatus.NOT_FOUND;
@@ -303,14 +316,16 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private setupPeriodicRefresh() {
+    if (this.refreshSubscription) {
+      this.refreshSubscription.unsubscribe();
+    }
+    const intervalTime = this.type === 'water' ? this.WATER_REFRESH_INTERVAL : this.refreshInterval;
     if (this.type === 'water') {
-      // Rafraîchir la quantité d’eau périodiquement via le capteur
-      this.refreshSubscription = interval(this.refreshInterval).subscribe(() => {
+      this.refreshSubscription = interval(intervalTime).subscribe(() => {
         this.loadWaterQuantity();
       });
     } else if (this.stockId && this.requiresStock) {
-      // Rafraîchir les stocks traditionnels (aliments)
-      this.refreshSubscription = interval(this.refreshInterval).subscribe(() => {
+      this.refreshSubscription = interval(intervalTime).subscribe(() => {
         this.refreshStockData();
       });
     }
@@ -318,9 +333,9 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
   private getStatusFromStock(stock: any): string {
     if (!stock || this.type === 'water') return this.status; // Géré par updateStatusForWater pour l’eau
-    if (stock.quantity <= 0) return ControlStatus.NO_STOCK;
-    if (stock.minQuantity && stock.quantity <= stock.minQuantity) return ControlStatus.LOW_STOCK;
-    return this.isActive ? `${ControlStatus.ACTIVE} (${stock.quantity} ${stock.unit} restant)` : ControlStatus.IDLE;
+    if (stock.quantity <= 0) return ControlStatus.NO_STOCK; // "Indisponible"
+    if (stock.minQuantity && stock.quantity <= stock.minQuantity) return ControlStatus.LOW_STOCK; // "Stock bas"
+    return this.isActive ? ControlStatus.ACTIVE : ControlStatus.IDLE; // "Actif" ou "Disponible"
   }
 
   toggleActive() {
@@ -335,11 +350,11 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private startDecrementInterval() {
-    if (this.type === 'water') return; // Pas de décrémentation pour l’eau, géré via capteur
+    if (this.type === 'water') return; // Pas de décrémentation pour l’eau
     this.stopDecrementInterval();
     this.decrementInterval = setInterval(() => {
       this.decrementStock();
-    }, 1000); // Décrementer toutes les secondes
+    }, 1000);
   }
 
   private stopDecrementInterval() {
@@ -387,7 +402,7 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
 
   getStockPercentage(): number {
     if (this.type === 'water') {
-      return Math.min(100, Math.max(0, Math.round((this.currentValue / 1000) * 100))); // Exemple : 1000L max
+      return this.isWaterSensorConnected ? Math.min(100, Math.max(0, Math.round((this.currentValue / 1000) * 100))) : 0; // 1000L max
     }
     if (this.initialValue <= 0) return 0;
     return Math.min(100, Math.max(0, Math.round((this.currentValue / this.initialValue) * 100)));
@@ -398,4 +413,5 @@ export class ControlItemComponent implements OnInit, OnChanges, OnDestroy {
     if (this.type === 'water') return '/assets/images/drink.png';
     return '/assets/images/default-control.png';
   }
+  
 }

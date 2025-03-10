@@ -2,11 +2,11 @@
   <div class="card-header">
     <h3>
       {{title}}
-      <ng-container *ngIf="getIcon() instanceof IconDefinition; else imageIcon">
-        <fa-icon [icon]="getIcon()" [class.rotate]="isActive" [class.colored-icon]="isColoredIcon()"></fa-icon>
+      <ng-container *ngIf="isIconDefinition(); else imageIcon">
+        <fa-icon [icon]="currentIcon" [class.rotate]="isActive" [class.colored-icon]="isColoredIcon()"></fa-icon>
       </ng-container>
       <ng-template #imageIcon>
-        <img [src]="getIcon()" class="icon-image" />
+        <img [src]="currentIcon" class="icon-image" />
       </ng-template>
     </h3>
   </div>

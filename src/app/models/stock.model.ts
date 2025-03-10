@@ -35,6 +35,7 @@
     currentStock: number;  // Quantité actuelle en stock
     unit: string;          // Unité de mesure (ex: "kg", "L")
     minQuantity: number;   // Quantité minimale requise
+    error?: string;
   }
 
   

@@ -69,6 +69,8 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   private waterInterval: any;
   private notificationsInterval: any;
 
+  archivedFeedings: Feeding[] = [];
+
   lastWateringTime: string = '--:--';
   nextWateringTime: string = '--:--';
 
@@ -109,6 +111,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
     this.loadFeedingStats();
     this.loadStockAlerts();
     this.loadFeedingPrograms();
+    this.loadArchivedFeedings();
     this.loadAvailableStocks();
     this.loadUnreadNotifications();
     this.initDailyStats();
@@ -194,7 +197,7 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       this.alimentationService.getAllFeedings().subscribe({
         next: (feedings: Feeding[]) => {
           this.feedingPrograms = feedings
-            .filter(feeding => feeding.programStartTime && feeding.programEndTime)
+            .filter(feeding => feeding.programStartTime && feeding.programEndTime && !feeding.isArchived) // Exclure les archivés
             .map(feeding => ({
               quantity: feeding.quantity,
               programStartTime: feeding.programStartTime!,
@@ -219,14 +222,9 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
             .filter(program => program.feedType === 'Eau')
             .reduce((total, program) => total + program.quantity, 0);
 
-          console.log('Programmes chargés :', this.feedingPrograms);
-          console.log('Programmes d\'eau :', this.waterPrograms);
-          console.log('Quantité initiale nourriture :', this.initialFoodQuantity);
-          console.log('Quantité initiale eau :', this.initialWaterQuantity);
-
           this.updateNextFeedingTime();
           this.updateTankLevels();
-          this.updateConsumptionStats(); // Nouvelle méthode pour récupérer les stats après chargement
+          this.updateConsumptionStats();
           this.checkCompletedPrograms();
           this.cdr.markForCheck();
         },
@@ -234,6 +232,22 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       })
     );
   }
+
+
+  loadArchivedFeedings() {
+    this.subscriptions.add(
+      this.alimentationService.getArchivedFeedings().subscribe({
+        next: (feedings) => {
+          this.archivedFeedings = feedings;
+          this.updateConsumptionStats();
+          this.cdr.markForCheck();
+        },
+        error: (error) => console.error('Erreur lors du chargement des programmes archivés:', error)
+      })
+    );
+  }
+
+
 
   loadAvailableStocks() {
     this.subscriptions.add(
@@ -546,15 +560,15 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
 
   deleteProgram(index: number) {
     const program = this.feedingPrograms[index];
-    if (program._id && confirm('Êtes-vous sûr de vouloir supprimer ce programme ?')) {
+    if (program._id && confirm('Êtes-vous sûr de vouloir archiver ce programme ?')) { // Changement de texte
       this.subscriptions.add(
-        this.alimentationService.deleteFeeding(program._id).subscribe({
+        this.alimentationService.archiveFeeding(program._id).subscribe({ // Remplace deleteFeeding
           next: () => {
             this.reloadData();
-            this.updateConsumptionStats(); // Mettre à jour après suppression
+            this.updateConsumptionStats(); // Mettre à jour après archivage
             this.cdr.markForCheck();
           },
-          error: (error) => console.error('Erreur lors de la suppression du programme:', error)
+          error: (error) => console.error('Erreur lors de l’archivage du programme:', error)
         })
       );
     }
@@ -562,22 +576,22 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
 
   deleteWaterProgram(index: number) {
     const program = this.waterPrograms[index];
-    if (program && confirm('Voulez-vous vraiment supprimer ce programme d\'arrosage ?')) {
+    if (program && confirm('Voulez-vous vraiment archiver ce programme d\'arrosage ?')) { // Changement de texte
       if (program._id) {
         this.subscriptions.add(
-          this.alimentationService.deleteFeeding(program._id).subscribe({
+          this.alimentationService.archiveFeeding(program._id).subscribe({ // Remplace deleteFeeding
             next: () => {
               this.waterPrograms.splice(index, 1);
-              this.loadFeedingPrograms(); // Recharger tous les programmes pour maintenir la cohérence
-              this.updateConsumptionStats(); // Mettre à jour après suppression
+              this.loadFeedingPrograms(); // Recharger pour exclure les archivés
+              this.updateConsumptionStats(); // Mettre à jour après archivage
               this.cdr.markForCheck();
             },
-            error: (error) => console.error('Erreur lors de la suppression du programme d\'eau:', error)
+            error: (error) => console.error('Erreur lors de l’archivage du programme d\'eau:', error)
           })
         );
       } else {
         this.waterPrograms.splice(index, 1);
-        this.updateConsumptionStats(); // Mettre à jour même si pas d'ID (cas local)
+        this.updateConsumptionStats();
         this.cdr.markForCheck();
       }
     }
@@ -724,10 +738,10 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
   private updateConsumptionStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    // Récupérer les quantités consommées et distribuées pour aujourd'hui
-    const params = { startDate: today, endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
-
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  
+    const params = { startDate: today, endDate: tomorrow };
+  
     forkJoin([
       this.alimentationService.getConsumedFood(params),
       this.alimentationService.getConsumedWater(params),
@@ -736,31 +750,41 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
       next: ([foodData, waterData, distributionData]: [ConsumptionData, ConsumptionData, DistributionData[] | DistributionData]) => {
         this.dailyFoodConsumption = foodData.totalConsumed;
         this.dailyWaterConsumption = waterData.totalConsumed;
-
-        // Calculer les distributions quotidiennes à partir des données distribuées
+  
+        // Inclure les archivés terminés aujourd'hui avec une vérification défensive
+        const archivedToday = this.archivedFeedings.filter(feeding => {
+          // Utilisez une propriété existante comme createdAt si updatedAt n’est pas garanti
+          const dateToCheck = (feeding as any).updatedAt || feeding.createdAt || null;
+          const updatedAt = dateToCheck ? new Date(dateToCheck) : null;
+          return updatedAt && updatedAt >= today && updatedAt < tomorrow;
+        });
+  
+        archivedToday.forEach(feeding => {
+          if (feeding.feedType === 'Eau') {
+            this.dailyWaterConsumption += feeding.quantity;
+          } else {
+            this.dailyFoodConsumption += feeding.quantity;
+          }
+        });
+  
         if (Array.isArray(distributionData)) {
           this.dailyDistributions = distributionData.reduce((sum, data) => sum + (data.totalDistributed > 0 ? 1 : 0), 0);
         } else {
           this.dailyDistributions = distributionData.totalDistributed > 0 ? 1 : 0;
         }
-
+        this.dailyDistributions += archivedToday.length;
+  
         this.cdr.markForCheck();
-        console.log('Stats consommées et distribuées mises à jour :', {
-          food: this.dailyFoodConsumption,
-          water: this.dailyWaterConsumption,
-          distributions: this.dailyDistributions
-        });
       },
-      error: (error: any) => console.error('Erreur lors de la mise à jour des stats de consommation:', error)
+      error: (error) => console.error('Erreur lors de la mise à jour des stats:', error)
     });
   }
+
 
   private checkCompletedPrograms() {
     const now = new Date();
     const currentTimeString = this.formatTimeString(now);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    let completedDistributions = 0;
 
     this.feedingPrograms.forEach(program => {
       if (program.programEndTime && program.programEndTime < currentTimeString && program._id) {
@@ -771,26 +795,21 @@ export class FeedingManagementComponent implements OnInit, OnDestroy {
         if (programDate.getFullYear() === today.getFullYear() &&
             programDate.getMonth() === today.getMonth() &&
             programDate.getDate() === today.getDate()) {
-          if (program.feedType === 'Eau') {
-            this.dailyWaterConsumption += program.quantity;
-          } else {
-            this.dailyFoodConsumption += program.quantity;
-          }
-          completedDistributions++;
+          // Ne pas incrémenter ici, car updateConsumptionStats gère les archivés
         }
 
-        this.alimentationService.deleteFeeding(program._id).subscribe({
+        this.alimentationService.archiveFeeding(program._id).subscribe({ // Remplace deleteFeeding
           next: () => {
-            console.log(`Programme ${program._id} terminé et supprimé`);
-            this.loadFeedingPrograms();
-            this.updateConsumptionStats(); // Mettre à jour après suppression
+            console.log(`Programme ${program._id} terminé et archivé`);
+            this.loadFeedingPrograms(); // Recharger pour exclure les archivés
+            this.loadArchivedFeedings(); // Recharger les archivés
+            this.updateConsumptionStats(); // Mettre à jour avec les archivés
           },
-          error: (error) => console.error('Erreur lors de la suppression du programme terminé:', error)
+          error: (error) => console.error('Erreur lors de l’archivage du programme terminé:', error)
         });
       }
     });
 
-    this.dailyDistributions = completedDistributions;
     this.cdr.markForCheck();
   }
 

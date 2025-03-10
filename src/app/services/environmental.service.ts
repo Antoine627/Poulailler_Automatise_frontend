@@ -5,9 +5,10 @@ import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service'; // Assurez-vous que ce service existe pour le token
 
 export interface LightSchedule {
+  _id?: string; // Ajoutez ceci si ce n'est pas déjà présent
+  startTime: string;
+  endTime: string;
   enabled: boolean;
-  startTime: string | null;
-  endTime: string | null;
 }
 
 @Injectable({
@@ -72,8 +73,8 @@ export class EnvironmentalService {
    * Supprime la programmation de la lampe.
    * @returns Observable<any> - La réponse du serveur.
    */
-  deleteLightSchedule(): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/light-schedule`, { headers: this.getHeader() }).pipe(
+  deleteLightSchedule(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/light-schedule/${id}`, { headers: this.getHeader() }).pipe(
       catchError(this.handleError<any>('deleteLightSchedule'))
     );
   }

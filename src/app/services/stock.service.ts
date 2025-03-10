@@ -214,13 +214,13 @@ export class StockService {
   }
 
   /**
-   * Récupérer le niveau du réservoir d'eau via le capteur.
-   * @returns Observable<{ waterTankLevel: number, waterQuantity: number, unit: string }> - Le niveau et la quantité d'eau.
+   * Récupérer le niveau du réservoir d'eau via le capteur, avec l'état de connexion du capteur.
+   * @returns Observable<{ waterLevel: number, waterQuantity: number, unit: string, isWaterSensorConnected: boolean }> - Le niveau, la quantité d'eau et l'état du capteur.
    */
-  getWaterTankLevel(): Observable<{ waterTankLevel: number, waterQuantity: number, unit: string }> {
+  getWaterTankLevel(): Observable<{ waterLevel: number; waterQuantity: number; unit: string; isWaterSensorConnected: boolean }> {
     const headers = this.getHeaders();
-    return this.http.get<{ waterTankLevel: number, waterQuantity: number, unit: string }>(`${this.apiUrl}/water-tank-level`, { headers }).pipe(
-      tap(data => console.log('[StockService] Water tank level and quantity retrieved:', data)),
+    return this.http.get<{ waterLevel: number; waterQuantity: number; unit: string; isWaterSensorConnected: boolean }>(`${this.apiUrl}/water-tank-level`, { headers }).pipe(
+      tap((data) => console.log('[StockService] Water tank level and quantity retrieved:', data)),
       catchError(this.handleError)
     );
   }

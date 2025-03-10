@@ -109,7 +109,35 @@ export class ProductionComponent implements OnInit {
   editForm: any = null;
   isAdding = true;
 
+  
+  
+  paginatedProductions: any[] = [];
+  currentPage: number = 1;
+  itemsPerPage: number = 3;
+  totalPages: number = 0;
+  
+
+  totalChickCost: number = 0; // Coût total des poussins
+
+
+  public totalFeedCost: number = 0;  // Coût total de l'alimentation
+  public totalOtherCosts: number = 0; // Autres coûts totaux
+
+
+
+  //detailler les calculs
+  public totalExpenses: number = 0;
+public totalRevenue: number = 0;
+public profit: number = 0; // Pour stocker le bénéfice
+
+
   showResults = false;
+
+   // Méthode pour synchroniser les valeurs
+   onChickenCountChange(value: number) {
+    this.feedCalculation.chickenCount = value;
+    this.profitabilityParams.numberOfChickens = value; // Synchroniser la valeur
+  }
 
   public profitabilityStats: any = null;
   public successMessage: string | null = null;
@@ -185,6 +213,7 @@ notificationType: 'success' | 'error' | 'info' = 'info';
     private costService: CostService,
     private productionService: ProductionService,
     private dialog: MatDialog
+    
   ) {}
 
   // 1. Vérifiez que votre service renvoie bien des données
@@ -196,7 +225,7 @@ notificationType: 'success' | 'error' | 'info' = 'info';
       console.log('Productions récupérées:', data);
     });
   }
-
+/* 
   loadDashboardData() {
     this.loading = true;
     this.error = null;
@@ -245,7 +274,52 @@ notificationType: 'success' | 'error' | 'info' = 'info';
         console.error(err);
       }
     });
-  }
+  } */
+
+
+    loadDashboardData() {
+      this.loading = true;
+      this.error = null;
+  
+      forkJoin({
+        productions: this.productionService.getAllProductions(),
+        // autres appels de service si nécessaire...
+      }).subscribe({
+        next: (data) => {
+          this.productions = data.productions || [];
+          console.log('Productions récupérées:', this.productions); // Log des productions
+          this.totalPages = Math.ceil(this.productions.length / this.itemsPerPage);
+          console.log('Total Pages:', this.totalPages); // Log du total de pages
+          this.updatePaginatedProductions();
+          this.loading = false;
+        },
+        error: (err) => {
+          this.error = 'Une erreur est survenue lors du chargement des données';
+          this.loading = false;
+          console.error(err);
+        }
+      });
+    }
+
+  
+    updatePaginatedProductions() {
+      const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+      this.paginatedProductions = this.productions.slice(startIndex, startIndex + this.itemsPerPage);
+      console.log('Productions paginées:', this.paginatedProductions); // Log des productions paginées
+    }
+
+    changePage(page: number) {
+      console.log('Changement de page à :', page);
+      if (page < 1 || page > this.totalPages) return; // Vérifiez les limites
+      this.currentPage = page;
+      this.updatePaginatedProductions();
+    }
+
+    get pageNumbers(): number[] {
+      return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+    }
+
+
 
 
   // Méthode pour afficher une notification
@@ -387,9 +461,10 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
     }
   }
 
-  // Calculer les besoins en alimentation
+  
+  
   calculateFeedRequirements() {
-    const { chickenCount, numberOfWeeks } = this.feedCalculation;
+    const { chickenCount, numberOfWeeks } = this.feedCalculation; // Accédez directement aux valeurs
     const currentDateTime = new Date().toISOString();
     const currentUser = 'Antoine627';
     
@@ -428,7 +503,10 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
     
     this.feedCalculation.totalCostFCFA =
       demarrage.totalCostFCFA + croissance.totalCostFCFA + finition.totalCostFCFA;
-    
+  
+    // Mettre à jour le coût d'alimentation dans profitabilityParams
+    this.profitabilityParams.feedCost = this.feedCalculation.totalCostFCFA;
+  
     // Estimer le nombre final de volailles après mortalité
     const estimatedSurvivingChickens = chickenCount * Math.pow(1 - weeklyMortalityRate, numberOfWeeks);
     this.feedCalculation.estimatedMortality = chickenCount - Math.floor(estimatedSurvivingChickens);
@@ -474,7 +552,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
           dynamicData: dynamicData
         };
         
-        // Dans calculateFeedRequirements()
+        // Sauvegarder le coût
         this.costService.addCost(cost).subscribe({
           next: (savedCost) => {
             console.log('Coût sauvegardé:', savedCost);
@@ -486,19 +564,6 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
             this.showNotification('Erreur lors de la sauvegarde du calcul d\'alimentation', 'error');
           }
         });
-
-        // Dans calculateProfitability()
-        this.costService.addCost(cost).subscribe({
-          next: (savedCost) => {
-            console.log('Coût de rentabilité enregistré:', savedCost);
-            this.loadDashboardData();
-            this.showNotification('Calcul de rentabilité effectué avec succès', 'success');
-          },
-          error: (error) => {
-            console.error('Erreur lors de l\'enregistrement du coût:', error);
-            this.showNotification('Erreur lors de l\'enregistrement du calcul de rentabilité', 'error');
-          }
-        });
       },
       error: (error) => {
         console.error('Erreur lors de la sauvegarde de la production:', error);
@@ -507,7 +572,6 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
       }
     });
   }
-
   addProduction() {
     const { chickenCount, mortality } = this.productionManagement;
     const production: Production = {
@@ -565,6 +629,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
     });
   }
 
+  
 
   deleteProduction(production: Production) {
     if (!production._id) return;
@@ -721,6 +786,7 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
 
   // Calculer la rentabilité
   calculateProfitability() {
+    this.calculateTotalExpenses();
     // Calculer le revenu total en fonction des ventes
     const totalRevenue = this.profitabilityParams.sales.reduce(
       (sum, sale) => sum + sale.quantity * sale.unitPrice,
@@ -818,4 +884,60 @@ private exportToCSV(data: any[], headers: string[], filename: string): void {
       totalProduction: this.productionManagement.updatedProduction,
     };
   }
+
+
+  preventNegative(event: KeyboardEvent) {
+    const inputValue = (event.target as HTMLInputElement).value;
+    const forbiddenKeys = ['-', '+', 'e', 'E', '.', ' ']; // Ajoutez d'autres caractères spéciaux ici
+  
+    // Vérifiez si la touche pressée est dans la liste des caractères interdits
+    if (forbiddenKeys.includes(event.key) || (event.key === '0' && inputValue.length === 0)) {
+      event.preventDefault(); // Empêche la saisie
+    }
+  }
+  
+  preventSpecialCharacters(event: KeyboardEvent) {
+    const forbiddenKeys = ['-', '+', 'e', 'E', '.', ' ']; // Caractères interdits
+    if (forbiddenKeys.includes(event.key)) {
+      event.preventDefault(); // Empêche la saisie du caractère
+    }
+  }
+
+
+  calculateTotalExpenses() {
+    const feedCost = this.profitabilityParams.feedCost || 0; // Coût d'alimentation
+    const otherCosts = this.profitabilityParams.otherCosts || 0; // Autres coûts
+    const chickPrice = this.profitabilityParams.chickPrice || 0; // Prix unitaire des poussins
+    const numberOfChickens = this.profitabilityParams.numberOfChickens || 0; // Nombre de poussins
+  
+    // Calculer le coût total des poussins
+    const chickCost = chickPrice * numberOfChickens; // Coût total des poussins
+  
+    // Total des dépenses
+    this.totalExpenses = feedCost + otherCosts + chickCost;
+  
+    // Mettre à jour les coûts spécifiques
+    this.totalFeedCost = feedCost;
+    this.totalOtherCosts = otherCosts;
+    this.totalChickCost = chickCost; // Ajoutez ceci pour stocker le coût total des poussins
+  }
+  calculateTotalCosts() {
+    const chickPrice = this.profitabilityParams.chickPrice || 0;
+    const numberOfChickens = this.profitabilityParams.numberOfChickens || 0;
+    const otherCosts = this.profitabilityParams.otherCosts || 0;
+  
+    // Calculer le coût total des poussins
+    this.totalChickCost = chickPrice * numberOfChickens;
+  
+    // Mettre à jour le coût total d'alimentation et d'autres coûts
+    this.totalFeedCost = this.profitabilityParams.feedCost || 0;
+    this.totalOtherCosts = otherCosts;
+  
+    // Mettre à jour le total général si nécessaire
+    this.totalExpenses = this.totalFeedCost + this.totalChickCost + this.totalOtherCosts;
+  }
+
+ 
+  
+
 }

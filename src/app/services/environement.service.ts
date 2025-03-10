@@ -17,7 +17,7 @@ export interface EnvironmentalData {
 })
 export class EnvironementService {
   // Définir l'URL de l'API directement ici
-  private apiUrl = 'http://localhost:3000/api/environement'; // Remplacez par l'URL de votre API
+  private apiUrl = 'http://localhost:3000/api/environements'; // Remplacez par l'URL de votre API
 
   constructor(private http: HttpClient) { }
 

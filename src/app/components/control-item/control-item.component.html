@@ -42,7 +42,20 @@
     <div class="content-center">
       <!-- Section des valeurs pour les types autres que "light" -->
       <div *ngIf="type !== 'light' && (currentValue !== undefined && currentValue !== null)" class="value-section">
-        <span class="value">{{currentValue}} {{unit}}</span>
+        <!-- Affichage spécifique pour l'eau -->
+        <ng-container *ngIf="type === 'water'">
+          <span class="value" *ngIf="isWaterSensorConnected; else sensorDisconnected">
+            {{currentValue | number:'1.0-0'}} {{unit}}
+          </span>
+          <ng-template #sensorDisconnected>
+            <span class="value">0 {{unit}} (Capteur déconnecté)</span>
+          </ng-template>
+        </ng-container>
+
+        <!-- Affichage pour les autres types (feed, etc.) -->
+        <ng-container *ngIf="type !== 'water'">
+          <span class="value">{{currentValue}} {{unit}}</span>
+        </ng-container>
 
         <!-- Indicateur de niveau si nécessaire pour les stocks -->
         <div *ngIf="requiresStock && initialValue > 0" class="stock-level-container">

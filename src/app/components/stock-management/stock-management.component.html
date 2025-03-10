@@ -21,18 +21,24 @@
                 <!-- Carte d'eau -->
                 <div class="card water-card">
                     <div class="card-header">
-                      <h2 class="card-title">Réserve d'Eau</h2>
+                        <h2 class="card-title">Réserve d'Eau</h2>
                     </div>
                     <div class="card-content">
-                      <div class="water-info">
-                        <i class="fas fa-tint water-icon"></i>
-                        <div class="water-details">
-                          <div class="water-quantity">{{ waterQuantity | number:'1.0-0' }} L</div>
-                          <div class="water-label">Quantité disponible (via capteur)</div>
+                        <div class="water-info">
+                            <i class="fas fa-tint water-icon"></i>
+                            <div class="water-details">
+                                <div class="water-quantity" *ngIf="isWaterSensorConnected; else noSensor">
+                                    {{ waterQuantity | number:'1.0-0' }} L
+                                    <span class="water-percentage">({{ waterLevel | number:'1.0-0' }}%)</span>
+                                </div>
+                                <ng-template #noSensor>
+                                    <div class="water-quantity error-text">Capteur déconnecté</div>
+                                </ng-template>
+                                <div class="water-label">Quantité disponible (via capteur)</div>
+                            </div>
                         </div>
-                      </div>
                     </div>
-                  </div>
+                </div>
 
                 <!-- Statistiques (uniquement pour les aliments) -->
                 <div class="card stats-card">
@@ -52,20 +58,25 @@
                 <!-- Alertes (inclus l'eau via capteur) -->
                 <div class="card alerts-card" *ngIf="lowStockAlerts.length > 0">
                     <div class="card-header">
-                      <h2 class="card-title">Alertes ({{ lowStockAlerts.length }})</h2>
+                        <h2 class="card-title">Alertes ({{ lowStockAlerts.length }})</h2>
                     </div>
                     <div class="card-content">
-                      <div class="alerts-list">
-                        <ul class="list">
-                          <li class="list-item alert-item" *ngFor="let alert of lowStockAlerts; let i = index" [attr.data-index]="i">
-                            <i class="fas fa-exclamation-triangle warn"></i>
-                            <div class="list-item-title">{{ alert.type }}</div>
-                            <div class="list-item-line">Stock bas: {{ alert.currentStock | number:'1.0-2' }} {{ alert.unit }} (seuil: {{ alert.minQuantity | number:'1.0-2' }} {{ alert.unit }})</div>
-                          </li>
-                        </ul>
-                      </div>
+                        <div class="alerts-list">
+                            <ul class="list">
+                                <li class="list-item alert-item" *ngFor="let alert of lowStockAlerts; let i = index" [attr.data-index]="i">
+                                    <i class="fas fa-exclamation-triangle warn"></i>
+                                    <div class="list-item-title">{{ alert.type }}</div>
+                                    <div class="list-item-line" *ngIf="!alert.error">
+                                        Stock bas: {{ alert.currentStock | number:'1.0-2' }} {{ alert.unit }} (seuil: {{ alert.minQuantity | number:'1.0-2' }} {{ alert.unit }})
+                                    </div>
+                                    <div class="list-item-line error-text" *ngIf="alert.error">
+                                        {{ alert.error }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                  </div>
+                </div>
             </div>
 
             <!-- Formulaire et Tableau de stocks (uniquement pour les aliments) -->
@@ -82,7 +93,7 @@
                                     <label for="type">Type de produit</label>
                                     <input id="type" formControlName="type" placeholder="Ex: Maïs" class="form-control">
                                     <div class="error" *ngIf="stockForm.get('type')?.hasError('required')">Type requis</div>
-                                    <div class="error" *ngIf="stockForm.get('type')?.value.toLowerCase() === 'eau'">Les stocks d'eau ne sont pas gérés manuellement, utilisez le capteur d'eau</div>
+                                    <div class="error" *ngIf="stockForm.get('type')?.value?.toLowerCase() === 'eau'">Les stocks d'eau ne sont pas gérés manuellement, utilisez le capteur d'eau</div>
                                 </div>
 
                                 <div class="form-group input-animation">

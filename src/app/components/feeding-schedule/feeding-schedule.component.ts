@@ -86,7 +86,7 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
       interval(60000).subscribe(() => this.updateCurrentTime())
     );
     this.subscriptions.add(
-      interval(this.CHECK_INTERVAL).subscribe(() => this.checkPrograms())
+      interval(this.CHECK_INTERVAL).subscribe(() => this.checkExpiredPrograms())
     );
     this.subscriptions.add(
       interval(this.NOTIFICATION_CHECK_INTERVAL).subscribe(() => this.loadUnreadNotifications())
@@ -95,12 +95,6 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       interval(30000).subscribe(() => this.loadWaterQuantity())
     );
-  }
-
-  private checkPrograms() {
-    this.checkExpiredPrograms();
-    this.checkUpcomingPrograms();
-    this.alimentationService.checkFeedingReminders().subscribe();
   }
 
   updateCurrentTime() {
@@ -208,18 +202,18 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
   }
 
   private processExpiredPrograms(programs: Feeding[], sectionName: string, currentTimeString: string) {
-    programs.filter(p => p.programEndTime && p.programEndTime < currentTimeString)
+    programs
+      .filter(p => p.programEndTime && p.programEndTime < currentTimeString && !p.isArchived)
       .forEach(program => {
         if (program._id) {
           this.subscriptions.add(
-            this.alimentationService.deleteFeeding(program._id).subscribe({
+            this.alimentationService.archiveFeeding(program._id).subscribe({
               next: () => {
-                if (program.stockId && sectionName === 'Aliment') this.incrementStock(program.stockId, program.quantity);
-                this[sectionName === 'Aliment' ? 'nourritures' : 'eau'] = 
-                  this[sectionName === 'Aliment' ? 'nourritures' : 'eau'].filter(p => p._id !== program._id);
-                this.showCustomNotification(`Programme "${this.getStockType(program.stockId || '')}" terminé`, 'info');
+                program.isArchived = true;
+                this.loadFeedings(); // Recharger pour exclure les archivés
+                this.showCustomNotification(`Programme "${this.getStockType(program.stockId || '')}" archivé`, 'info');
               },
-              error: (error) => console.error('Erreur suppression auto:', error)
+              error: (error) => console.error('Erreur archivage auto:', error)
             })
           );
         }
@@ -294,8 +288,9 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       this.alimentationService.getAllFeedings().subscribe({
         next: (feedings) => {
-          this.nourritures = feedings.filter(f => f.feedType.toLowerCase() !== 'eau');
-          this.eau = feedings.filter(f => f.feedType.toLowerCase() === 'eau');
+          // Filtrer pour n'afficher que les programmes non archivés
+          this.nourritures = feedings.filter(f => f.feedType.toLowerCase() !== 'eau' && !f.isArchived);
+          this.eau = feedings.filter(f => f.feedType.toLowerCase() === 'eau' && !f.isArchived);
         },
         error: (error) => {
           console.error('Erreur chargement programmes:', error);
@@ -394,8 +389,9 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
       automaticFeeding: this.newAutomaticFeeding,
       programStartTime: this.newAutomaticFeeding ? this.newProgramStartTime : undefined,
       programEndTime: this.newAutomaticFeeding ? this.newProgramEndTime : undefined,
-      stockId: this.currentSection === 'Eau' ? undefined : this.newStockId, // Pas de stockId pour l’eau
-      reminderSent: false
+      stockId: this.currentSection === 'Eau' ? undefined : this.newStockId,
+      reminderSent: false,
+      isArchived: false
     };
 
     if (this.editIndex !== null) {
@@ -500,36 +496,30 @@ export class FeedingScheduleComponent implements OnInit, OnDestroy {
 
     this.dialog.open(ConfirmDialogComponent, {
       width: '400px',
-      data: { title: 'Confirmation', message: 'Supprimer ce programme ?' }
+      data: { title: 'Confirmation', message: 'Archiver ce programme ?' } // Changement de texte
     }).afterClosed().subscribe(result => {
       if (result && program._id) {
         this.subscriptions.add(
-          this.alimentationService.deleteFeeding(program._id).subscribe({
-            next: (deletedProgram) => {
-              // Vérifier si le programme supprimé est pour l'eau et est actuellement actif
-              if (deletedProgram.feedType.toLowerCase() === 'eau' && this.isProgramActive(deletedProgram)) {
+          this.alimentationService.archiveFeeding(program._id).subscribe({ // Remplace deleteFeeding
+            next: (archivedProgram) => {
+              // Vérifier si le programme archivé est pour l'eau et est actuellement actif
+              if (archivedProgram.feedType.toLowerCase() === 'eau' && this.isProgramActive(archivedProgram)) {
                 this.alimentationService.stopWaterImmediate().subscribe({
-                  next: () => console.log('Pompe arrêtée immédiatement après suppression'),
+                  next: () => console.log('Pompe arrêtée immédiatement après archivage'),
                   error: (err) => console.error('Erreur lors de l’arrêt immédiat:', err)
                 });
               }
-              // Vérifier si le programme supprimé est pour la nourriture et est actuellement actif
-              else if (deletedProgram.feedType.toLowerCase() !== 'eau' && this.isProgramActive(deletedProgram)) {
+              // Vérifier si le programme archivé est pour la nourriture et est actuellement actif
+              else if (archivedProgram.feedType.toLowerCase() !== 'eau' && this.isProgramActive(archivedProgram)) {
                 this.alimentationService.stopFeedingImmediate().subscribe({
-                  next: () => console.log('Servomoteur arrêté immédiatement après suppression'),
+                  next: () => console.log('Servomoteur arrêté immédiatement après archivage'),
                   error: (err) => console.error('Erreur lors de l’arrêt immédiat:', err)
                 });
               }
-              if (program.stockId && section === 'Aliment') this.incrementStock(program.stockId, program.quantity);
-              if (section === 'Eau') {
-                // Incrémenter virtuellement waterQuantity quand un programme d’eau est supprimé
-                this.waterQuantity += program.quantity || 0;
-                console.log('[FeedingScheduleComponent] Water quantity incremented after deletion:', this.waterQuantity);
-              }
-              this.showCustomNotification('Programme supprimé', 'success');
-              this.loadFeedings();
+              this.showCustomNotification('Programme archivé', 'success');
+              this.loadFeedings(); // Recharger pour exclure les archivés
             },
-            error: () => this.showCustomNotification('Erreur suppression', 'error')
+            error: () => this.showCustomNotification('Erreur archivage', 'error')
           })
         );
       }

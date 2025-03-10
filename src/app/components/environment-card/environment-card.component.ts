@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faThermometerHalf, faTint, faSun, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
-import { EnvironmentalData, EnvironementService } from '../../services/environement.service'; // Votre service actuel
-import { EnvironmentalService } from '../../services/environmental.service'; // Service mis à jour pour la lampe
+import { EnvironmentalData, EnvironementService } from '../../services/environement.service';
+import { EnvironmentalService } from '../../services/environmental.service';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
@@ -39,17 +39,19 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
   refreshInterval = 30000; // Actualiser toutes les 30 secondes
   isLoading: boolean = false; // État de chargement pour les commandes
 
+  // Propriété pour stocker l'icône courante, avec une valeur par défaut
+  currentIcon: IconDefinition | string = faQuestionCircle; // Par défaut, une icône valide
+
   constructor(
-    private environementService: EnvironementService, // Service existant pour les données environnementales
-    private environmentalService: EnvironmentalService // Service mis à jour pour la lampe
+    private environementService: EnvironementService,
+    private environmentalService: EnvironmentalService
   ) {}
 
   ngOnInit(): void {
+    this.currentIcon = this.getIcon(); // Initialisation de l'icône
     this.loadEnvironmentalData();
     this.dataSubscription = interval(this.refreshInterval)
-      .pipe(
-        switchMap(() => this.environementService.getLatestData())
-      )
+      .pipe(switchMap(() => this.environementService.getLatestData()))
       .subscribe({
         next: (data) => {
           console.log('Received Data:', data);
@@ -85,16 +87,22 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
     if (this.environmentalData) {
       switch (this.title.toLowerCase()) {
         case 'temperature':
-          this.value = this.environmentalData.temperature.toFixed(1);
+          this.value = this.environmentalData.temperature !== undefined 
+            ? this.environmentalData.temperature.toFixed(1) 
+            : 'N/A';
           this.unit = 'C';
           break;
         case 'humidity':
-          this.value = this.environmentalData.humidity.toFixed(1);
+          this.value = this.environmentalData.humidity !== undefined 
+            ? this.environmentalData.humidity.toFixed(1) 
+            : 'N/A';
           this.unit = '%';
           break;
         case 'light':
-          this.value = this.environmentalData.lightPercentage.toFixed(1);
-          this.unit = 'Lux';
+          this.value = this.environmentalData.lightPercentage !== undefined 
+            ? this.environmentalData.lightPercentage.toFixed(1) 
+            : 'N/A';
+          this.unit = '%';
           break;
         default:
           this.value = 'N/A';
@@ -118,6 +126,11 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Vérifie si l'icône est une instance de IconDefinition
+  isIconDefinition(): boolean {
+    return this.currentIcon instanceof Object && 'iconName' in this.currentIcon;
+  }
+
   isColoredIcon(): boolean {
     return ['thermometer', 'droplet', 'sun'].includes(this.icon);
   }
@@ -130,6 +143,7 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
       next: () => {
         this.isActive = true;
         this.isLoading = false;
+        this.currentIcon = this.getIcon(); // Mise à jour de l'icône après changement d'état
         console.log('Lampe allumée');
       },
       error: (err) => {
@@ -147,6 +161,7 @@ export class EnvironmentCardComponent implements OnInit, OnDestroy {
       next: () => {
         this.isActive = false;
         this.isLoading = false;
+        this.currentIcon = this.getIcon(); // Mise à jour de l'icône après changement d'état
         console.log('Lampe éteinte');
       },
       error: (err) => {
